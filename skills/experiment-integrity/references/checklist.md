@@ -51,7 +51,7 @@ Work through the sections that apply. For each item, record in the design ledger
 
 - [ ] The number of analyses, models or configurations tried is counted. Selection uses held-out data, or the multiplicity is corrected.
 - [ ] Standard errors account for clustering and correlated units (time windows, subjects, sites, assets).
-- [ ] Splits respect the dependence structure (time, group, subject). No information from test data reaches preprocessing, feature selection, tuning or early stopping (scan code L1).
+- [ ] Splits respect the dependence structure (time, group, subject). No information from test data reaches preprocessing, feature selection, tuning or early stopping (scan codes L1, L2).
 - [ ] Baselines are tuned with the same budget as the proposed method.
 - [ ] Preregistered analyses are distinguished from exploratory ones in the text.
 

@@ -126,6 +126,20 @@ class NumberAuditStats(Tmp):
         self.assertFalse([1 for (t, rep), s in rows.items() if "35.7%" in rep and s != "ok"],
                          "35.7% of 28 (10/28) is possible")
 
+    def test_grim_phrasing_and_boundaries(self):
+        path = os.path.join(self.tmp, "extra.md")
+        wr(path, "## Results\n\nMean length of stay in the validation subsample was 4.37 days (n = 23).\n"
+                 "Mean AUC across folds was 0.81 (n = 5).\n"
+                 "Mean age of participants was 54.35 years (n = 20).\n"
+                 "参数敏感性分析中，准确率为 84.23%；n=6 时达到最优。\n")
+        out = os.path.join(self.tmp, "extra")
+        run([script("number-audit", "number_audit.py"), "stats", path, "--out", out])
+        rows = {(r["test"], r["reported"]): r["status"] for r in jload(os.path.join(out, "stats.json"))}
+        self.assertEqual(self.find(rows, "GRIM mean", "4.37"), "CHECK")      # integer days, n = 23
+        self.assertEqual(self.find(rows, "GRIM mean", "54.35"), "ok")        # 1087 / 20
+        self.assertFalse([1 for (t, rep) in rows if "AUC" in rep], "GRIM does not apply to AUC")
+        self.assertFalse([1 for (t, rep) in rows if "84.23" in rep], "n=6 after '；' is not the sample size")
+
     def test_bounded_scale(self):
         self.assertNotIn(("SD bound", "4.1 ± 3.5"), self.stats())
         rows = self.stats("--bounds", "1,7")
@@ -152,6 +166,22 @@ class NumberAuditGuards(Tmp):
         wr(tex, s)
         p = run([script("number-audit", "number_audit.py"), "guard-check", "guards.json"], cwd=work, ok_codes=(1,))
         self.assertIn("N0004", p.stdout, "0.47 must not be found inside 10.47")
+
+
+class NumberAuditTrace(Tmp):
+    def test_manuscript_is_not_its_own_source(self):
+        work = os.path.join(self.tmp, "study")
+        os.makedirs(os.path.join(work, "results"))
+        wr(os.path.join(work, "paper.md"), "# Title\n\n## Abstract\n\nThe median latency was 1,753 ms, and the "
+                                           "model achieved an AUC of 0.837 in the cohort.\n")
+        wr(os.path.join(work, "results", "metrics.json"), '{"latency_ms": 1752.6}\n')
+        out = os.path.join(self.tmp, "na")
+        run([script("number-audit", "number_audit.py"), "extract", "paper.md", "--out", out], cwd=work)
+        run([script("number-audit", "number_audit.py"), "trace", os.path.join(out, "numbers.json"),
+             "--repo", work, "--out", out], cwd=self.tmp)   # a different working directory on purpose
+        rows = {r["raw"]: r["status"] for r in jload(os.path.join(out, "trace.json"))["rows"]}
+        self.assertEqual(rows.get("0.837"), "orphan", rows)        # occurs only in the manuscript itself
+        self.assertEqual(rows.get("1,753"), "traced", rows)        # 1752.6 in results/metrics.json
 
 
 # ---------------------------------------------------------------------------
@@ -318,6 +348,83 @@ class CiteContexts(Tmp):
 
 
 # ---------------------------------------------------------------------------
+# examples/synthetic-study: what the scripts alone must find (see its ANSWER_KEY.md)
+# ---------------------------------------------------------------------------
+STUDY = os.path.join(ROOT, "examples", "synthetic-study", "study")
+
+
+class SyntheticStudy(Tmp):
+    def test_statistics(self):
+        out = os.path.join(self.tmp, "st")
+        run([script("number-audit", "number_audit.py"), "stats", os.path.join(STUDY, "paper.md"), "--out", out])
+        rows = {(r["test"], r["reported"][:40]): r["status"] for r in jload(os.path.join(out, "stats.json"))}
+        flagged = {t for (t, _), s in rows.items() if s != "ok"}
+        self.assertEqual(flagged, {"t", "GRIM mean", "overlap", "delta", "OR CI"}, rows)       # P9 P10 P4 P11 P12
+        self.assertIn(("k/n %", "1,610 of 12,840 discharges (12.5%)"), rows)                    # the clean control
+        self.assertEqual(rows[("k/n %", "1,610 of 12,840 discharges (12.5%)")], "ok")
+
+    def test_abstract_numbers_without_source(self):
+        out = os.path.join(self.tmp, "na")
+        run([script("number-audit", "number_audit.py"), "extract", os.path.join(STUDY, "paper.md"), "--out", out])
+        run([script("number-audit", "number_audit.py"), "trace", os.path.join(out, "numbers.json"), "--repo", STUDY,
+             "--regions", "abstract", "--out", out])
+        orphans = {r["raw"] for r in jload(os.path.join(out, "trace.json"))["rows"] if r["status"] == "orphan"}
+        self.assertEqual(orphans, {"12,480", "0.83"})                                           # P6 P5
+
+    def test_code(self):
+        out = os.path.join(self.tmp, "ei")
+        run([script("experiment-integrity", "integrity_scan.py"), STUDY, "--out", out])
+        d = jload(os.path.join(out, "integrity_scan.json"))
+        codes = {h["code"] for h in d["hits"]}
+        self.assertEqual(codes, {"L1", "L2", "X1", "X2"}, d["hits"])                           # P1 P2 P7 P8
+        seed_lists = {s[1] for v in d["seeds"].values() for s in v}
+        self.assertTrue({"[0, 1, 2, 3, 4]", "[10, 11, 12, 13, 14]"} <= seed_lists, seed_lists)  # P3
+
+    def test_wording(self):
+        out = os.path.join(self.tmp, "h.json")
+        run([script("paper-polish", "hedge_scan.py"), os.path.join(STUDY, "paper.md"), "--json", out])
+        res = jload(out)
+        files = res if isinstance(res, list) else res.get("files", [res])
+        c = files[0]["sections"]["abstract"]["counts"]
+        for code in ("D2", "D4", "D16", "O", "OS"):                                             # P16 P14 P4
+            self.assertGreaterEqual(c.get(code, 0), 1, c)
+        self.assertGreaterEqual(files[0]["sections"]["introduction"]["counts"].get("D15", 0), 1)
+
+
+# ---------------------------------------------------------------------------
+# Repository conventions (see Contributing in README.md)
+# ---------------------------------------------------------------------------
+class SkillMetadata(unittest.TestCase):
+    def skills(self):
+        return sorted(d for d in os.listdir(SK) if os.path.isfile(os.path.join(SK, d, "SKILL.md")))
+
+    def test_frontmatter(self):
+        import re
+        for name in self.skills():
+            text = rd(os.path.join(SK, name, "SKILL.md"))
+            m = re.match(r"^---\n(.*?)\n---\n", text, re.S)
+            self.assertTrue(m, f"{name}: no frontmatter")
+            fm = dict(line.split(": ", 1) for line in m.group(1).splitlines() if ": " in line)
+            self.assertEqual(fm.get("name"), name, f"{name}: name must match the directory")
+            desc = fm.get("description", "")
+            self.assertTrue(desc, f"{name}: missing description")
+            self.assertLessEqual(len(desc), 1024, f"{name}: description has {len(desc)} characters")
+            self.assertNotIn(": ", desc, f"{name}: ': ' in the description breaks YAML")
+            self.assertNotIn(" #", desc, f"{name}: ' #' in the description starts a YAML comment")
+
+    def test_documented_in_both_readmes(self):
+        for readme in ("README.md", "README.zh-CN.md"):
+            text = rd(os.path.join(ROOT, readme))
+            for name in self.skills():
+                self.assertIn(f"### {name}", text, f"{readme} has no guide for {name}")
+
+    def test_failure_modes_registered(self):
+        text = rd(os.path.join(ROOT, "FAILURE_MODES.md"))
+        for name in self.skills():
+            self.assertIn(f"`{name}`", text, f"FAILURE_MODES.md does not register {name}")
+
+
+# ---------------------------------------------------------------------------
 # Online (opt-in)
 # ---------------------------------------------------------------------------
 @unittest.skipUnless(ONLINE, "online tests run only with --online")
@@ -335,6 +442,19 @@ class Online(Tmp):
         res = {r["key"]: {i[1] for i in r["issues"]} for r in jload(os.path.join(out, "results.json"))["results"]}
         self.assertEqual(res["lecun2015"], set(), res)
         self.assertIn("NOT_FOUND", res["fake2024"])
+
+    def test_synthetic_study_bibliography(self):
+        out = os.path.join(self.tmp, "cv")
+        run([script("cite-verify", "refcheck.py"), "check", os.path.join(STUDY, "refs.bib"), "--all", "--out", out],
+            ok_codes=(0, 1))
+        res = {r["key"]: {i[1] for i in r["issues"]} for r in jload(os.path.join(out, "results.json"))["results"]}
+        self.assertEqual(res["kansagara2011"], {"YEAR_MISMATCH"}, res)   # the subtitle is not a title mismatch
+        self.assertEqual(res["friedman2001"], set(), res)
+        self.assertIn("NOT_FOUND", res["smith2023"])                     # P15
+
+    def test_lit_graph_resolve_pmid(self):
+        p = run([script("novelty-audit", "lit_graph.py"), "resolve", "PMID:26044081"])
+        self.assertIn("predicting early hospital readmissions", p.stdout)
 
     def test_lit_graph_resolve(self):
         p = run([script("novelty-audit", "lit_graph.py"), "resolve", "10.1038/nature14539", "--json"])

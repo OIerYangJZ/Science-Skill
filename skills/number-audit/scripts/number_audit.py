@@ -95,6 +95,11 @@ REL_RX = re.compile(
 )
 
 
+
+def _md(x: str) -> str:
+    """Escape a table cell (kept outside f-strings for Python < 3.12)."""
+    return str(x).replace("|", "\\|")
+
 def _f(s: str) -> float:
     return float(s.replace("{,}", "").replace(",", "").replace("−", "-").replace(" ", ""))
 
@@ -203,8 +208,8 @@ def extract_many(mains: list[str], include_all: bool = False) -> dict:
         macros.update(p["macros"])
     for k, it in enumerate(items, 1):
         it["id"] = f"N{k:04d}"
-    return {"main": mains[0], "mains": mains, "macros": macros, "items": items,
-            "conflicts": find_conflicts(items, macros)}
+    return {"main": mains[0], "mains": mains, "mains_abs": [os.path.abspath(m) for m in mains],
+            "macros": macros, "items": items, "conflicts": find_conflicts(items, macros)}
 
 
 def extract(main: str, include_all: bool = False) -> dict:
@@ -357,8 +362,8 @@ def write_extract(res: dict, out: str):
     for it in sorted(items, key=lambda i: (order.get(i["region"].split(":")[0], 9), i["file"], i["line"])):
         sym = f"{it['symbol']} {it['relation']}" if it["symbol"] else ""
         ctx = it["context"][:150].replace("|", "\\|")
-        lines.append(f"| {it['id']} | {it['file']}:{it['line']} | {it['region']} | {it['raw'].replace('|', '\\|')} | "
-                     f"{it['kind']} | {sym.replace('|', '\\|')} | {ctx} |")
+        lines.append(f"| {it['id']} | {it['file']}:{it['line']} | {it['region']} | {_md(it['raw'])} | "
+                     f"{it['kind']} | {_md(sym)} | {ctx} |")
     with open(os.path.join(out, "numbers.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
     c = res["conflicts"]
@@ -474,10 +479,12 @@ def _lookup(keys, vals, locs, lo, hi):
 
 def trace(numbers_json: str, repo: str, regions: list[str] | None, exclude: list[str], max_mb: float, out: str):
     res = json.load(open(numbers_json, encoding="utf-8"))
-    main_dir = os.path.dirname(os.path.abspath(res["main"]))
-    manuscript = {os.path.abspath(os.path.join(main_dir, it["file"])) for it in res["items"]}
-    for m in res.get("mains", [res["main"]]):
-        manuscript.add(os.path.abspath(m))
+    # The manuscript is never a source of its own numbers. Paths in numbers.json may be relative to the
+    # directory extract ran in, so resolve them against every plausible base.
+    bases = {os.path.dirname(p) for p in res.get("mains_abs", [])} | {os.getcwd(), os.path.abspath(repo)}
+    mains = res.get("mains", [res["main"]])
+    manuscript = {os.path.abspath(os.path.join(b, f)) for b in bases
+                  for f in mains + [it["file"] for it in res["items"]]}
     vals, locs, nfiles, skipped = build_index(repo, manuscript, exclude, max_mb)
     keys = [v for v, _ in vals]
     rows = []
@@ -540,8 +547,8 @@ def trace(numbers_json: str, repo: str, regions: list[str] | None, exclude: list
                   "|---|---|---|---|---|---|---|---|"]
         for r in sel:
             cands = "<br>".join(c.replace("|", "\\|")[:120] for c in r["candidates"][:3])
-            lines.append(f"| {r['id']} | {r['loc']} | {r['region']} | {r['raw'].replace('|', '\\|')} | {r['match']} | "
-                         f"{r['n_hits']} | {cands} | {r['context'].replace('|', '\\|')} |")
+            lines.append(f"| {r['id']} | {r['loc']} | {r['region']} | {_md(r['raw'])} | {r['match']} | "
+                         f"{r['n_hits']} | {cands} | {_md(r['context'])} |")
         lines.append("")
     with open(os.path.join(out, "trace.md"), "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines))
@@ -562,7 +569,11 @@ STAT_RX = {
     "r": re.compile(r"(?<![A-Za-z])r\s*\(\s*(?P<df>\d+)\s*\)\s*=\s*(?P<stat>-?\d*\.?\d+)\s*[,;]\s*" + PV),
     "z": re.compile(r"(?<![A-Za-z])[zZ]\s*=\s*(?P<stat>-?\d*\.?\d+)\s*[,;]\s*" + PV),
 }
-PCT_RX = re.compile(r"(?P<k>\d+)\s*(?:/|of|out of)\s*(?P<n>\d+)\s*\(\s*(?P<pct>\d+(?:\.\d+)?)\s*%\s*\)")
+# "12 of 40 (30%)", "1,610 of 12,840 discharges (12.5%)", "12/40 (30%)": thousands separators and up to three
+# words naming the unit are allowed between n and the percentage.
+_INT = r"\d{1,3}(?:,\d{3})+(?!\d)|\d+"
+PCT_RX = re.compile(r"(?<![\d,.])(?P<k>" + _INT + r")\s*(?:/|of|out of)\s*(?P<n>" + _INT + r")"
+                    r"(?:\s+[A-Za-z][\w-]*){0,3}?\s*\(\s*(?P<pct>\d+(?:\.\d+)?)\s*%\s*\)")
 RATIO_RX = re.compile(r"\b(?P<m>a?OR|RR|a?HR|IRR|PR|RRR)\s*[=:]?\s*(?P<pt>\d+\.?\d*)\s*[,;(\[]?\s*(?:95\s*%\s*)?"
                       r"(?:CI|confidence interval)[:,]?\s*[\[(]?\s*(?P<lo>\d+\.?\d*)\s*(?:[-–—]|to|,)\s*(?P<hi>\d+\.?\d*)")
 
@@ -643,7 +654,7 @@ def stats_check(main: str, alpha: float = 0.05, bounds: tuple[float, float] | No
                                                     ("one-tailed?" if note else "INCONSISTENT")),
                          "note": note})
     for m in PCT_RX.finditer(t):
-        k, n, pct = int(m.group("k")), int(m.group("n")), m.group("pct")
+        k, n, pct = int(m.group("k").replace(",", "")), int(m.group("n").replace(",", "")), m.group("pct")
         if n == 0 or k > n:
             continue
         exp = 100.0 * k / n
@@ -703,9 +714,17 @@ def grim_pct_ok(p_str: str, n: int) -> bool | None:
 GRIM_MEAN_RX = [
     re.compile(r"\b(?:M|mean|Mean|average)\s*(?:=|of|was|:)\s*(?P<m>\d+\.\d+)(?:[^.;]|\.(?=\d)){0,80}?\b[nN]\s*=\s*(?P<n>\d+)"),
     re.compile(r"\b[nN]\s*=\s*(?P<n>\d+)(?:[^.;]|\.(?=\d)){0,80}?\b(?:M|mean|Mean|average)\s*(?:=|of|was|:)\s*(?P<m>\d+\.\d+)"),
+    # "Mean length of stay in the subsample was 4.37 days (n = 23)": words between "mean" and the value.
+    re.compile(r"\b(?:[Mm]ean|[Aa]verage)\s+(?P<what>[A-Za-z][\w\- ]{0,60}?)\s+(?:was|were|of|=|:)\s*(?P<m>\d+\.\d+)"
+               r"(?:[^.;]|\.(?=\d)){0,80}?\b[nN]\s*=\s*(?P<n>\d+)"),
 ]
+# Quantities that are not integer-valued per unit: GRIM does not apply when the named quantity is one of these.
+GRIM_CONTINUOUS = re.compile(r"\b(AUC|AUROC|accuracy|precision|recall|F1|loss|error|rate|ratio|proportion|probability|"
+                             r"score|time|latency|duration|weight|height|BMI|concentration|level|dose|pressure|"
+                             r"temperature|distance|length(?! of stay)|area|volume|speed|cost|price|income|percentage)\b", re.I)
 GRIM_PCT_RX = [
-    re.compile(r"(?P<p>\d+(?:\.\d+)?)\s*%(?!\s*(?:CI|confidence|credible))[^.;%]{0,40}?\(?\s*[nN]\s*=\s*(?P<n>\d+)\s*\)?"),
+    # The gap may not cross a clause boundary, including full-width CJK punctuation ("84.23%；n=6" is a parameter).
+    re.compile(r"(?P<p>\d+(?:\.\d+)?)\s*%(?!\s*(?:CI|confidence|credible))[^.;%；。，、）\n]{0,40}?\(?\s*[nN]\s*=\s*(?P<n>\d+)\s*\)?"),
 ]
 PM_RX = re.compile(r"(?P<m>\d+(?:\.\d+)?)\s*(?P<pc1>%)?\s*(?:±|\+/-|\+/−|\+-)\s*(?P<s>\d+(?:\.\d+)?)\s*(?P<pc2>%)?")
 UNIT_WORDS = re.compile(r"\b(accuracy|AUC|AUROC|F1|precision|recall|probability|proportion|rate|fraction|score)\b",
@@ -740,6 +759,8 @@ def extra_checks(t: str, src, bounds: tuple[float, float] | None, items: int) ->
             if key in seen:
                 continue
             seen.add(key)
+            if "what" in rx.groupindex and GRIM_CONTINUOUS.search(m.group("what")):
+                continue
             ok = grim_mean_ok(m.group("m"), int(m.group("n")), items)
             if ok is None:
                 continue
@@ -801,7 +822,8 @@ def extra_checks(t: str, src, bounds: tuple[float, float] | None, items: int) ->
         if len(pms) >= 2:
             (m1, s1), (m2, s2) = [(float(x.group("m")), float(x.group("s"))) for x in pms[:2]]
             if abs(m1 - m2) <= s1 + s2:
-                rows.append({"loc": loc(sm.start()), "test": "overlap", "reported": re.sub(r"\s+", " ",
+                lead = len(sm.group(0)) - len(sm.group(0).lstrip())   # the sentence, not the whitespace before it
+                rows.append({"loc": loc(sm.start() + lead), "test": "overlap", "reported": re.sub(r"\s+", " ",
                              sm.group(0)).strip()[:140], "computed_p": None, "computed_range": [], "status": "CHECK",
                              "note": f"comparison claimed while {m1:g}±{s1:g} and {m2:g}±{s2:g} overlap: report a test "
                                      "or effect size with uncertainty, or soften the comparison"})

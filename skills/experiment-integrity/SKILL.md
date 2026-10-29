@@ -69,9 +69,10 @@ The scan lists leads by code; each lead must be read in context.
 | S4 | Missing values replaced by a constant (`fillna(0)`, `nan_to_num`) |
 | R1 | Random draw inside a condition or on the right of `and` / `or` |
 | R2 | Random draw in only one branch of an `if` |
-| R3 | Seed list per file, to compare across arms |
+| R3 | Seed list per file, including seed lists such as `SEEDS_A = [0, …]`, to compare across arms |
 | P1 | Number hard-coded in figure text |
-| L1 | Preprocessing fitted before the train/test split |
+| L1 | Preprocessing fitted before the train/test split, in the same function or in a function that never splits |
+| L2 | Model or hyperparameter selection by a test-set score (`if auc > best` with `auc` computed on `y_test`) |
 | G1 | Check script testing numbers by substring |
 | G2 | Shell matching pitfalls (`grep -c … \|\| echo 0`, paths without end delimiters) |
 | X1 | Placeholder or synthetic data on a result path (random values assigned to results, `dummy` / `placeholder` strings, `TODO` markers outside tests) |

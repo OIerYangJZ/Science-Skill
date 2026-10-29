@@ -6,7 +6,7 @@ and the result count to a search log, so that "no prior work found" can be
 stated with its scope (which databases, which queries, which date).
 
 Subcommands
-  resolve ID [ID ...]                 DOIs / arXiv ids / OpenAlex ids -> works
+  resolve ID [ID ...]                 DOIs / arXiv ids / PMIDs (PMID:123) / OpenAlex ids -> works
   refs ID [--match "words"]           works that ID cites (backward)
   citing ID [--match "words"] [--from 2018] [--sort date|cited] [-n 50]
                                       works that cite ID (forward): who built on

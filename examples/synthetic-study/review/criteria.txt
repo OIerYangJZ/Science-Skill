@@ -1,0 +1,13 @@
+PLOS ONE, "Criteria for Publication" (verbatim excerpts)
+Source: https://journals.plos.org/plosone/s/criteria-for-publication (fetched 2026-10-29)
+
+1. The study presents the results of original research.
+2. Results reported have not been published elsewhere.
+3. Experiments, statistics, and other analyses are performed to a high technical standard and are described in sufficient detail.
+   Experiments must have been conducted rigorously, with appropriate controls and replication. Sample sizes must be large enough to produce robust results, where applicable. Methods and reagents must be described in sufficient detail for another researcher to reproduce the experiments described.
+4. Conclusions are presented in an appropriate fashion and are supported by the data.
+   The data presented in the manuscript must support the conclusions drawn. Submissions will be rejected if the interpretation of results is unjustified or inappropriate, so authors should avoid overstating their conclusions. Authors may discuss possible implications for their results as long as these are clearly identified as hypotheses instead of conclusions.
+5. The article is presented in an intelligible fashion and is written in standard English.
+6. The research meets all applicable standards for the ethics of experimentation and research integrity.
+7. The article adheres to appropriate reporting guidelines and community standards for data availability.
+   Results must be rigorously reported, as appropriate based on community standards.

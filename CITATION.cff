@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use Science-Skill in your work, please cite it as below."
+type: software
+title: "Science-Skill: Claude Code skills against the failure modes of AI-assisted research"
+authors:
+  - alias: OIerYangJZ
+repository-code: "https://github.com/OIerYangJZ/Science-Skill"
+url: "https://github.com/OIerYangJZ/Science-Skill"
+abstract: >-
+  A library of Claude Code skills that counter recurring failure modes of
+  AI-assisted research: defensive or inflated writing, numbers that drift from
+  the data, code that does not implement the described design, unchecked proof
+  steps, fabricated or misattributed references, self-confirming novelty
+  searches, venue choices made from memory, mock reviews that are not
+  independent, and optimistic progress reports. Each skill is a written
+  procedure backed by standard-library Python scripts that measure, trace or
+  verify.
+keywords:
+  - research integrity
+  - scientific writing
+  - reproducibility
+  - peer review
+  - Claude Code
+  - agent skills
+license: MIT
+version: 0.4.0
+date-released: "2026-10-29"

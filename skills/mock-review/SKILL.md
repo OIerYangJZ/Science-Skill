@@ -35,11 +35,11 @@ The author's own practice in Case B serves as a model (see paper-polish's `refer
 - **Quick** (`--quick`): a kill-argument round, minutes instead of hours. Use it while the paper is still changing, to test a new framing, or to decide whether a full round is worth it. Steps:
   1. **Pack and pin** as in Phase 1.
   2. **Attack.** One fresh subagent, isolated as in rule 1, writes the strongest rejection memo it can, at most 200 words and at most 3 kill arguments, each with a location and evidence (prompt in Section 6.1 of `references/templates.md`).
-  3. **Defend.** Another fresh subagent, which has not seen the attacker's reasoning beyond the memo, answers each argument with REBUTTED (quoting the paper), FIXABLE (with the minimal change) or STANDS (Section 6.2).
+  3. **Defend.** Another fresh subagent, which sees the memo and the recomputations the attacker listed but none of its other reasoning, answers each argument with REBUTTED (quoting the paper), FIXABLE (with the minimal change) or STANDS (Section 6.2).
   4. **Verify.** The main session checks every argument that was not cleanly rebutted, and every rebuttal it doubts, as in Phase 5, including the innocent explanations.
   5. **Report.** Write `quick_report.md` (Section 6.3): each kill argument, the defense, the verification, the status, and the next step. A rebutted argument still means the answer is not visible enough to a referee.
 
-  Quick mode does not replace a full review: it looks for reasons to reject, not for every problem.
+  Quick mode does not replace a full review: it looks for reasons to reject, not for every problem. A worked run on a synthetic paper, with the answer key and a scorecard, is in `examples/synthetic-study/` at the repository root.
 
 ## Phase 0: Intake
 

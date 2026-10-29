@@ -131,7 +131,8 @@ PATTERNS: dict[str, tuple[str, list[str]]] = {
     ]),
     "O": ("overclaim flag (check ledger)", [
         r"\bfor the first time\b",
-        r"\bthe first (?:\w+ )?(?:demonstration|proof|result|framework|method|study|work|example|evidence|bound|algorithm)\b",
+        r"\bthe first (?:[\w-]+ ){0,2}?(?:demonstration|proof|result|framework|method|study|work|example|evidence|bound|"
+        r"algorithm|model|approach|system|tool|analysis|dataset|benchmark|application|report|trial|attempt)s?\b",
         r"\bnovel\b",
         r"\bunprecedented\b",
         r"\brevolution(?:ary|i[sz]es?)\b",

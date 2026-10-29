@@ -370,10 +370,16 @@ def crossref_updates(cr: dict) -> list[str]:
 
 
 def openalex_work(ident: str) -> dict | None:
-    """ident: OpenAlex id (W123...), DOI, or arXiv id."""
+    """ident: OpenAlex id (W123...), DOI, arXiv id, PMID (PMID:123 or pmid:123) or PMCID (PMC123)."""
     ident = ident.strip()
     if re.match(r"^(https://openalex\.org/)?W\d+$", ident):
         return oa_json("works/" + ident.rsplit("/", 1)[-1], {})
+    m = re.fullmatch(r"(?i)pmid:\s*(\d+)", ident)
+    if m:
+        return oa_json("works/pmid:" + m.group(1), {})
+    m = re.fullmatch(r"(?i)(?:pmcid:\s*)?(PMC\d+)", ident)
+    if m:
+        return oa_json("works/pmcid:" + m.group(1).upper(), {})
     if ident.lower().startswith("10."):
         return oa_json("works/doi:" + ident, {})
     m = ARXIV_ID.fullmatch(ident) or ARXIV_ID.search(ident)

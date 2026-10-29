@@ -4,6 +4,7 @@
 
 **Claude Code skills that catch the predictable mistakes of AI-assisted research, before an editor or a referee does.**
 
+[![tests](https://github.com/OIerYangJZ/Science-Skill/actions/workflows/tests.yml/badge.svg)](https://github.com/OIerYangJZ/Science-Skill/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?logo=python&logoColor=white)
 ![Dependencies: standard library only](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg)
@@ -12,7 +13,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-[Quick start](#quick-start) · [What it catches](#what-it-catches) · [Skills](#skills-at-a-glance) · [Skill guide](#skill-guide) · [Pipelines](#using-the-skills-as-gates-in-automated-research-pipelines) · [FAQ](#faq)
+[Quick start](#quick-start) · [What it catches](#what-it-catches) · [Worked example](#worked-example) · [Skills](#skills-at-a-glance) · [Skill guide](#skill-guide) · [Pipelines](#using-the-skills-as-gates-in-automated-research-pipelines) · [FAQ](#faq)
 
 </div>
 
@@ -42,6 +43,7 @@ The skills are **discipline-agnostic**. They read LaTeX, Word, Markdown, plain-t
 
 - [Why this exists](#why-this-exists)
 - [What it catches](#what-it-catches)
+- [Worked example](#worked-example)
 - [Quick start](#quick-start)
 - [Where the skills fit](#where-the-skills-fit)
 - [Skills at a glance](#skills-at-a-glance)
@@ -53,7 +55,7 @@ The skills are **discipline-agnostic**. They read LaTeX, Word, Markdown, plain-t
 - [Using the skills as gates in automated research pipelines](#using-the-skills-as-gates-in-automated-research-pipelines)
 - [Command-line tools](#command-line-tools) · [Supported inputs](#supported-inputs) · [Data sources and privacy](#data-sources-and-privacy)
 - [Limitations](#limitations) · [FAQ](#faq) · [Related projects](#related-projects)
-- [Repository layout](#repository-layout) · [Tests](#tests) · [Contributing](#contributing) · [License](#license)
+- [Repository layout](#repository-layout) · [Tests](#tests) · [Contributing](#contributing) · [Citing](#citing) · [License](#license)
 
 ## What it catches
 
@@ -168,6 +170,17 @@ $ python3 skills/dead-end-ledger/scripts/ledger.py graph tests/fixtures/ledger.m
 ## Ready to attempt (all dependencies VERIFIED)
 - T2: extension to r=3
 ```
+
+## Worked example
+
+[`examples/synthetic-study/`](examples/synthetic-study/) is a complete run on an invented clinical-prediction paper with code, results and a bibliography, in which 16 problems were planted: leakage, tuning on the test split, unpaired seeds, placeholder calibration values, impossible statistics, number drift, a false "first" claim, a fabricated reference, defensive wording and more. The answer key was added only after the review had finished.
+
+| Layer | Planted problems found | Missed |
+|---|---|---|
+| `/mock-review --quick`: attacker, defender, main-session verification | 14 fully, 1 partially (GRIM: the paper never says the stays are whole days) | Defensive wording (kill memos ignore wording by design) |
+| Scripts alone (`number_audit`, `integrity_scan`, `hedge_scan`, `refcheck`) | 13 fully, 2 partially | Causal language outside the editor-facing sections |
+
+Together the two layers covered all 16. The review also found contradictions nobody had planted, for example a Brier score worse than predicting the prevalence for everyone. The run exposed 12 gaps in the library, which were fixed with regression tests. The memo, the defense, the verification record, the scorecard and the list of fixes are in the [example's README](examples/synthetic-study/README.md).
 
 ## Quick start
 
@@ -551,9 +564,10 @@ python3 skills/experiment-integrity/scripts/integrity_scan.py ./analysis --out i
 | S4 | Missing values replaced by a constant (`fillna(0)`, `nan_to_num`) |
 | R1 | Random draw inside a condition (`if cond and rng.random() < p`) |
 | R2 | Random draw in only one branch of an `if` |
-| R3 | Seed list per file (to compare arms) |
+| R3 | Seed list per file, including lists such as `SEEDS_A = [0, …]` (to compare arms) |
 | P1 | Number hard-coded in figure text |
-| L1 | Preprocessing fitted before the train/test split |
+| L1 | Preprocessing fitted before the train/test split, in the same function or in a function that never splits |
+| L2 | Model or hyperparameter selection by a test-set score (`if auc > best` with `auc` computed on `y_test`) |
 | G1 | A check script that tests numbers by substring ("0.47" inside "10.47") |
 | G2 | Shell pitfalls (`grep -c … \|\| echo 0`; paths without end delimiters) |
 | X1 | Placeholder or synthetic data on a result path (random values assigned to `scores` or `results`; `dummy` or `placeholder` strings; `TODO` outside tests) |
@@ -900,10 +914,10 @@ flowchart LR
 | `paper-polish/scripts/hedge_scan.py` | files; `--summary`, `--json`, `--sections` | Metrics and flagged phrasing in title, abstract, introduction, conclusion and captions; distributions over many files |
 | `paper-polish/scripts/exemplar_meta.py` | `venue`, `search`, `fetch` | Find exemplars; verify metadata; fetch abstract and introduction (arXiv source or PMC XML; DOI, arXiv ID or PMID) |
 | `number-audit/scripts/number_audit.py` | `extract`, `stats`, `trace`, `guard-init`, `guard-check` | Inventory; statistical consistency (`--bounds`, `--items`); source trace; guards |
-| `experiment-integrity/scripts/integrity_scan.py` | paths; `--out`, `--exclude` | Static scan for sentinel, randomness, leakage, figure, check-script, placeholder-data and unused-metric pitfalls |
+| `experiment-integrity/scripts/integrity_scan.py` | paths; `--out`, `--exclude` | Static scan for sentinel, randomness, leakage, test-set selection, figure, check-script, placeholder-data and unused-metric pitfalls |
 | `proof-audit/scripts/proof_map.py` | `.tex` files; `--out` | Theorem and proof map with dependency, gap-phrase, constant and notation leads |
 | `cite-verify/scripts/refcheck.py` | `check`, `check-list`, `contexts` | BibTeX and RIS verification; free-text reference lists; citing sentences per reference |
-| `novelty-audit/scripts/lit_graph.py` | `resolve`, `search`, `citing`, `refs`, `recent`, `watch` | Searches over OpenAlex, arXiv, Europe PMC and Zenodo; citation graph; watch lists |
+| `novelty-audit/scripts/lit_graph.py` | `resolve`, `search`, `citing`, `refs`, `recent`, `watch` | Searches over OpenAlex, arXiv, Europe PMC and Zenodo; citation graph from a DOI, arXiv ID or PMID; watch lists |
 | `venue-fit/scripts/venue_fit.py` | `neighbors`, `profile`, `factsheet` | Where similar work is published; venue profiles; fact-sheet templates |
 | `mock-review/scripts/review_pack.py` | `pack`, `check-pin` | Isolated, pinned review packs; detection of manuscript changes |
 | `dead-end-ledger/scripts/ledger.py` | `init`, `search`, `card`, `graph`, `lint`, `status` | Ledger creation, duplicate search, idea cards, dependency graph, checks |
@@ -1022,12 +1036,15 @@ Science-Skill/
 │       └── scripts/            standalone scripts
 ├── lib/                        shared modules: document reading, scholarly APIs, BibTeX/RIS, statistics
 ├── prompts/                    calibrated-writing prompts for use without Claude Code
+├── examples/synthetic-study/   a worked run with an answer key and a scorecard
 ├── tests/
 │   ├── run_tests.py            regression tests
 │   └── fixtures/               synthetic inputs with planted errors
 ├── templates/SKILL_TEMPLATE.md template for new skills
 ├── FAILURE_MODES.md            catalog of observed failure modes and candidate skills
 ├── install.sh                  installs the skills as symlinks
+├── CITATION.cff                citation metadata
+├── .github/workflows/tests.yml continuous integration
 └── .claude-plugin/plugin.json  plugin manifest
 ```
 
@@ -1039,7 +1056,9 @@ python3 tests/run_tests.py --online   # also queries Crossref, OpenAlex and arXi
 python3 tests/run_tests.py -v         # verbose output
 ```
 
-The fixtures in [`tests/fixtures/`](tests/fixtures/) are synthetic and contain planted errors: an impossible mean, an SD above its bound, a wrong percentage change, a p-value that does not match its statistic, defensive phrasing, a random draw inside a condition, a sentinel return, placeholder data, a dependency cycle in a ledger, a circular proof, a retracted dependency, and a fabricated reference. Each test checks that the planted errors are reported and that the clean controls next to them are not.
+GitHub Actions runs the offline tests on every push and pull request, on Python 3.10–3.14 under Linux and on Python 3.14 under macOS. The online tests run on demand: start the workflow manually with `online` checked.
+
+The fixtures in [`tests/fixtures/`](tests/fixtures/) are synthetic and contain planted errors: an impossible mean, an SD above its bound, a wrong percentage change, a p-value that does not match its statistic, defensive phrasing, a random draw inside a condition, a sentinel return, placeholder data, a dependency cycle in a ledger, a circular proof, a retracted dependency, and a fabricated reference. Each test checks that the planted errors are reported and that the clean controls next to them are not. Further tests pin what the scripts must find in the [worked example](#worked-example), and check repository conventions: every skill's frontmatter, its guide in both README files, and its row in `FAILURE_MODES.md`.
 
 ## Contributing
 
@@ -1047,10 +1066,25 @@ New failure modes, cases from other disciplines, and false-positive reports are 
 
 1. **Record the failure first** in [FAILURE_MODES.md](FAILURE_MODES.md), with its symptoms and the observed evidence. A new skill should address a failure that has actually occurred; the file also lists observed candidates that are not yet written.
 2. **Write the skill** from [templates/SKILL_TEMPLATE.md](templates/SKILL_TEMPLATE.md), in English, with `references/` and `scripts/` as needed. Scripts use the standard library only and locate `lib/` through `os.path.realpath(__file__)`. Keep the description at 1024 characters or fewer.
-3. **Add a fixture with planted errors** to `tests/`, and run `python3 tests/run_tests.py`.
+3. **Add a fixture with planted errors** to `tests/`, and run `python3 tests/run_tests.py`. Continuous integration runs the same tests on Python 3.10–3.14.
 4. **Document the skill** in both README files (this one and [README.zh-CN.md](README.zh-CN.md)).
 5. **Keep cases anonymized:** no unpublished results, manuscript details or names.
 6. Run `./install.sh` and test the skill in a new session.
+
+## Citing
+
+If Science-Skill helps your work, please cite it. GitHub's "Cite this repository" button reads [`CITATION.cff`](CITATION.cff); in BibTeX:
+
+```bibtex
+@software{science_skill,
+  title   = {Science-Skill: Claude Code skills against the failure modes of AI-assisted research},
+  author  = {{OIerYangJZ}},
+  year    = {2026},
+  version = {0.4.0},
+  url     = {https://github.com/OIerYangJZ/Science-Skill},
+  license = {MIT}
+}
+```
 
 ## License
 

@@ -122,7 +122,8 @@ in <direction>. Your task is to find the strongest reasons to reject it.
 
 Materials (read-only): <pack path>, version pinned in <PIN.json>.
 Journal criteria (verbatim): <criteria.txt>
-Read only inside <pack path>. Do not open any other directory.
+Read only inside <pack path>, plus <criteria.txt> and <PIN.json>. Do not open any
+other directory. Run code only in <work-attacker path>.
 
 Write a rejection memo of at most 200 words to <reports/kill_memo.md> in <language>:
 - At most 3 kill arguments (K1, K2, K3), strongest first. A kill argument is a reason
@@ -144,8 +145,10 @@ You are a co-author defending this paper against a referee's rejection memo. You
 were not involved in writing it, and you may use only the paper itself.
 
 Materials (read-only): <pack path>, version pinned in <PIN.json>.
-Rejection memo: <reports/kill_memo.md>
-Read only inside <pack path> and the memo. Do not open any other directory.
+Rejection memo: <reports/kill_memo.md> (the memo and the referee's listed
+recomputations, which are evidence you may check)
+Read only inside <pack path>, the memo and <PIN.json>. Do not open any other
+directory. Run code only in <work-defender path>.
 
 For each kill argument, write to <reports/defense.md> in <language>:
 - Verdict: REBUTTED (the paper already answers it: quote the passage and give its
@@ -154,7 +157,9 @@ For each kill argument, write to <reports/defense.md> in <language>:
 - Evidence for the verdict. "The authors would argue" is not evidence; quote the
   paper or recompute.
 - For FIXABLE: the minimal change, and whether it needs new results.
+- If an argument bundles several claims, give a verdict for each sub-claim.
 Concede when the argument is right. A wrong rebuttal is worse than a concession.
+End with the files you read and the commands you ran.
 ```
 
 ### 6.3 Quick report (`quick_report.md`)

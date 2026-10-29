@@ -4,6 +4,7 @@
 
 **一组 Claude Code 技能：赶在编辑和审稿人之前，抓出 AI 辅助科研中可以预见的错误。**
 
+[![tests](https://github.com/OIerYangJZ/Science-Skill/actions/workflows/tests.yml/badge.svg)](https://github.com/OIerYangJZ/Science-Skill/actions/workflows/tests.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?logo=python&logoColor=white)
 ![Dependencies: standard library only](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg)
@@ -12,7 +13,7 @@
 
 [English](README.md) · **简体中文**
 
-[快速上手](#快速上手) · [能抓到什么](#能抓到什么) · [技能一览](#技能一览) · [技能详解](#技能详解) · [流水线](#在自动科研流水线中作为关卡使用) · [常见问题](#常见问题)
+[快速上手](#快速上手) · [能抓到什么](#能抓到什么) · [完整案例](#完整案例) · [技能一览](#技能一览) · [技能详解](#技能详解) · [流水线](#在自动科研流水线中作为关卡使用) · [常见问题](#常见问题)
 
 </div>
 
@@ -42,6 +43,7 @@ AI 助手已经参与到论文的写作、分析和核查之中。它出错的�
 
 - [为什么需要它](#为什么需要它)
 - [能抓到什么](#能抓到什么)
+- [完整案例](#完整案例)
 - [快速上手](#快速上手)
 - [技能在研究流程中的位置](#技能在研究流程中的位置)
 - [技能一览](#技能一览)
@@ -53,7 +55,7 @@ AI 助手已经参与到论文的写作、分析和核查之中。它出错的�
 - [在自动科研流水线中作为关卡使用](#在自动科研流水线中作为关卡使用)
 - [命令行工具](#命令行工具) · [支持的输入](#支持的输入) · [数据来源与隐私](#数据来源与隐私)
 - [局限](#局限) · [常见问题](#常见问题) · [相关项目](#相关项目)
-- [仓库结构](#仓库结构) · [测试](#测试) · [参与贡献](#参与贡献) · [许可证](#许可证)
+- [仓库结构](#仓库结构) · [测试](#测试) · [参与贡献](#参与贡献) · [引用](#引用) · [许可证](#许可证)
 
 ## 能抓到什么
 
@@ -168,6 +170,17 @@ $ python3 skills/dead-end-ledger/scripts/ledger.py graph tests/fixtures/ledger.m
 ## Ready to attempt (all dependencies VERIFIED)
 - T2: extension to r=3
 ```
+
+## 完整案例
+
+[`examples/synthetic-study/`](examples/synthetic-study/) 是在一篇虚构的临床预测论文上完整运行的记录。论文附有代码、结果和参考文献，里面埋了 16 个问题：数据泄漏、用测试集调参、种子不配对、占位的校准数值、不可能出现的统计量、数字漂移、不实的"首个"主张、编造的参考文献、防御性措辞等。答案清单是在审稿结束之后才加进仓库的。
+
+| 层次 | 找到的预埋问题 | 漏掉的 |
+|---|---|---|
+| `/mock-review --quick`：攻击方、辩护方、主会话核实 | 14 个完全找到，1 个部分找到（GRIM：论文没说住院天数是整数天） | 防御性措辞（致命论点按设计不管措辞） |
+| 只用脚本（`number_audit`、`integrity_scan`、`hedge_scan`、`refcheck`） | 13 个完全找到，2 个部分找到 | 编辑会读部分之外的因果措辞 |
+
+两层合起来覆盖了全部 16 个问题。审稿还找到了没有预埋的矛盾，例如 Brier 分数比"对所有人都预测发生率"还差。这次运行暴露了库里的 12 处缺口，都已修复并加了回归测试。拒稿意见、辩护、核实记录、计分表和修复清单见[案例说明](examples/synthetic-study/README.md)。
 
 ## 快速上手
 
@@ -551,9 +564,10 @@ python3 skills/experiment-integrity/scripts/integrity_scan.py ./analysis --out i
 | S4 | 用常数填补缺失值（`fillna(0)`、`nan_to_num`） |
 | R1 | 条件里抽随机数（`if cond and rng.random() < p`） |
 | R2 | 只在 `if` 的一个分支里抽随机数 |
-| R3 | 每个文件的随机种子清单（用于比较各组） |
+| R3 | 每个文件的随机种子清单，包括 `SEEDS_A = [0, …]` 这类列表（用于比较各组） |
 | P1 | 图中文字写死了数字 |
-| L1 | 在划分训练/测试集之前就拟合了预处理 |
+| L1 | 在划分训练/测试集之前就拟合了预处理（同一函数内，或在一个从不划分数据的函数里） |
+| L2 | 用测试集上的分数挑选模型或超参数（`if auc > best`，而 `auc` 由 `y_test` 算出） |
 | G1 | 检查脚本用子串判断数字（"0.47" 能在 "10.47" 里找到） |
 | G2 | shell 陷阱（`grep -c … \|\| echo 0`；路径匹配缺少结尾定界） |
 | X1 | 结果路径上的占位或合成数据（把随机数赋给 `scores`、`results` 等变量；`dummy`、`placeholder` 字符串；测试之外的 `TODO`） |
@@ -900,10 +914,10 @@ flowchart LR
 | `paper-polish/scripts/hedge_scan.py` | 文件；`--summary`、`--json`、`--sections` | 标题、摘要、引言、结论和图注的指标与被标出的措辞；多个文件的分布 |
 | `paper-polish/scripts/exemplar_meta.py` | `venue`、`search`、`fetch` | 查找范文；核验元数据；获取摘要和引言（arXiv 源码或 PMC XML；支持 DOI、arXiv ID、PMID） |
 | `number-audit/scripts/number_audit.py` | `extract`、`stats`、`trace`、`guard-init`、`guard-check` | 数字清单；统计一致性（`--bounds`、`--items`）；来源追溯；护栏 |
-| `experiment-integrity/scripts/integrity_scan.py` | 路径；`--out`、`--exclude` | 静态扫描哨兵值、随机性、数据泄漏、图、检查脚本、占位数据和未使用指标中的陷阱 |
+| `experiment-integrity/scripts/integrity_scan.py` | 路径；`--out`、`--exclude` | 静态扫描哨兵值、随机性、数据泄漏、用测试集挑选、图、检查脚本、占位数据和未使用指标中的陷阱 |
 | `proof-audit/scripts/proof_map.py` | `.tex` 文件；`--out` | 定理与证明地图，附依赖、跳步用语、常数和记号线索 |
 | `cite-verify/scripts/refcheck.py` | `check`、`check-list`、`contexts` | BibTeX 与 RIS 核验；自由文本文献列表；按文献列出引用句 |
-| `novelty-audit/scripts/lit_graph.py` | `resolve`、`search`、`citing`、`refs`、`recent`、`watch` | 在 OpenAlex、arXiv、Europe PMC 和 Zenodo 上检索；引用图；监测清单 |
+| `novelty-audit/scripts/lit_graph.py` | `resolve`、`search`、`citing`、`refs`、`recent`、`watch` | 在 OpenAlex、arXiv、Europe PMC 和 Zenodo 上检索；从 DOI、arXiv ID 或 PMID 出发的引用图；监测清单 |
 | `venue-fit/scripts/venue_fit.py` | `neighbors`、`profile`、`factsheet` | 相似工作发在哪里；期刊档案；事实表模板 |
 | `mock-review/scripts/review_pack.py` | `pack`、`check-pin` | 隔离并锁定版本的审稿副本；检测稿件改动 |
 | `dead-end-ledger/scripts/ledger.py` | `init`、`search`、`card`、`graph`、`lint`、`status` | 建立账本、查重、想法卡片、依赖图、检查 |
@@ -1022,12 +1036,15 @@ Science-Skill/
 │       └── scripts/            可单独运行的脚本
 ├── lib/                        共享模块：文档读取、学术接口、BibTeX/RIS、统计
 ├── prompts/                    不用 Claude Code 时使用的校准写作提示词
+├── examples/synthetic-study/   附答案清单和计分表的完整案例
 ├── tests/
 │   ├── run_tests.py            回归测试
 │   └── fixtures/               预埋错误的合成样例
 ├── templates/SKILL_TEMPLATE.md 新技能模板
 ├── FAILURE_MODES.md            已观察到的失效模式和候选技能
 ├── install.sh                  以软链接方式安装技能
+├── CITATION.cff                引用元数据
+├── .github/workflows/tests.yml 持续集成
 └── .claude-plugin/plugin.json  插件清单
 ```
 
@@ -1039,7 +1056,9 @@ python3 tests/run_tests.py --online   # 另外查询 Crossref、OpenAlex 和 arX
 python3 tests/run_tests.py -v         # 详细输出
 ```
 
-[`tests/fixtures/`](tests/fixtures/) 中的样例都是合成的，并预埋了错误：不可能出现的均值、超出上界的标准差、算错的百分比变化、与统计量不符的 p 值、防御性措辞、条件里的随机数抽取、返回哨兵值的分支、占位数据、账本中的循环依赖、循环证明、被撤回的依赖，以及一条编造的参考文献。每个测试都检查预埋的错误被报告出来，而旁边的正确对照没有被误报。
+每次推送和 pull request，GitHub Actions 都会运行离线测试：Linux 上覆盖 Python 3.10–3.14，macOS 上覆盖 Python 3.14。联网测试按需运行：手动启动 workflow 并勾选 `online` 即可。
+
+[`tests/fixtures/`](tests/fixtures/) 中的样例都是合成的，并预埋了错误：不可能出现的均值、超出上界的标准差、算错的百分比变化、与统计量不符的 p 值、防御性措辞、条件里的随机数抽取、返回哨兵值的分支、占位数据、账本中的循环依赖、循环证明、被撤回的依赖，以及一条编造的参考文献。每个测试都检查预埋的错误被报告出来，而旁边的正确对照没有被误报。另有测试固定了脚本在[完整案例](#完整案例)中必须找到的问题，并检查仓库约定：每个技能的 frontmatter、两份 README 中的说明，以及 `FAILURE_MODES.md` 中的登记。
 
 ## 参与贡献
 
@@ -1047,10 +1066,25 @@ python3 tests/run_tests.py -v         # 详细输出
 
 1. **先记录失效模式：** 在 [FAILURE_MODES.md](FAILURE_MODES.md) 中写下症状和观察到的证据。新技能应当针对实际发生过的问题；该文件也列出了已观察到、但尚未编写的候选技能。
 2. **编写技能：** 以 [templates/SKILL_TEMPLATE.md](templates/SKILL_TEMPLATE.md) 为模板，用英文编写，按需添加 `references/` 和 `scripts/`。脚本只用标准库，通过 `os.path.realpath(__file__)` 定位 `lib/`。description 不超过 1024 个字符。
-3. **加入带预埋错误的样例：** 放进 `tests/`，然后运行 `python3 tests/run_tests.py`。
+3. **加入带预埋错误的样例：** 放进 `tests/`，然后运行 `python3 tests/run_tests.py`。持续集成会在 Python 3.10–3.14 上运行同样的测试。
 4. **写文档：** 在两份 README（[README.md](README.md) 和本文件）中都加上说明。
 5. **案例保持匿名：** 不包含未发表的结果、稿件细节或人名。
 6. 运行 `./install.sh`，在新会话中测试。
+
+## 引用
+
+如果 Science-Skill 对你的工作有帮助，欢迎引用。GitHub 页面上的 "Cite this repository" 按钮读取的是 [`CITATION.cff`](CITATION.cff)；BibTeX 格式如下：
+
+```bibtex
+@software{science_skill,
+  title   = {Science-Skill: Claude Code skills against the failure modes of AI-assisted research},
+  author  = {{OIerYangJZ}},
+  year    = {2026},
+  version = {0.4.0},
+  url     = {https://github.com/OIerYangJZ/Science-Skill},
+  license = {MIT}
+}
+```
 
 ## 许可证
 

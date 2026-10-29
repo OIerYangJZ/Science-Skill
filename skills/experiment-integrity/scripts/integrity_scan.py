@@ -20,8 +20,13 @@ Codes
   R3  seeds: every literal seed or seed range, listed per file, to check that
       compared arms really use the same instances
   P1  number hard-coded in figure text (title, label, annotation)
-  L1  .fit / .fit_transform before train_test_split in the same function
-      (preprocessing fitted on data that later becomes the test set)
+  L1  preprocessing fitted on data that later becomes the test set: .fit /
+      .fit_transform before train_test_split in the same function, or a
+      scaler / selector / imputer fitted in a function that never splits,
+      in a module that splits elsewhere
+  L2  model or hyperparameter selection by a test-set score: inside a loop, a
+      metric computed on test-named data (y_test, Xte, ...) is compared with
+      a "best" value
   G1  check script that tests a number with a substring test (str(v) in text):
       "0.47" is a substring of "10.47"
   G2  shell: grep -c ... || echo 0 (prints "0\\n0" when nothing matches)
@@ -61,6 +66,12 @@ METRIC_FUNC = re.compile(r"(accuracy|precision|recall|f1|auc|roc|score|metric|er
 PLACEHOLDER = re.compile(r"\b(dummy|placeholder|fake|lorem ipsum|hard-?coded|mock(ed)? (data|result)s?)\b", re.I)
 PLACEHOLDER_NEG = re.compile(r"\b(no|not|non|without|replac\w*|remov\w*|instead of)\b|无|非|替换|去除|删除|不是", re.I)
 TODO_RX = re.compile(r"#\s*(TODO|FIXME|HACK|XXX)\b")
+PREPROC = re.compile(r"(Scaler|Normalizer|Imputer|Encoder|Vectorizer|Selector|SelectKBest|SelectPercentile|"
+                     r"VarianceThreshold|PCA|TruncatedSVD|PolynomialFeatures|Binarizer|QuantileTransformer|"
+                     r"PowerTransformer|KBinsDiscretizer)$|^(scaler|selector|pca|imputer|encoder|vectorizer|normali[sz]er)",
+                     re.I)
+TRAIN_NAME = re.compile(r"(^|_)(tr|train|training|fit)(_|$)|^(x|y)_?(tr|train)$", re.I)
+TEST_NAME = re.compile(r"^(x|y)_?(te|test|tst)$|(^|_)(test|holdout)(_|$)", re.I)
 NUM_IN_TEXT = re.compile(r"(?<![A-Za-z_])\d+\.\d+|\d+\s*(?:°|%|\\%|deg|m\b|km|ms|s\b)|\d{3,}")
 
 
@@ -117,6 +128,8 @@ class Visitor(ast.NodeVisitor):
         self.func_stack: list[ast.AST] = []
         self._seen: set = set()
         self.is_test = bool(re.search(r"(^|/)(tests?|testing)(/|$)|(^|/)test_|_test\.py$", path))
+        self.split_funcs: set[str] = set()
+        self.preproc_fits: list[tuple[str, ast.AST, str]] = []
         self.check_script = bool(re.search(r"check|guard|verify|assert|validate|test", os.path.basename(path), re.I))
 
     def hit(self, code: str, node: ast.AST, note: str):
@@ -223,6 +236,16 @@ class Visitor(ast.NodeVisitor):
                     self.hit("P1", node, f"number written into figure text ({txt[:50]!r}): read it from the results "
                                          "file instead")
                     break
+        # leakage across functions: remember preprocessing fits and where splits happen
+        if last == "train_test_split":
+            self.split_funcs.add(getattr(self.func_stack[-1], "name", "<module>") if self.func_stack else "<module>")
+        if last in ("fit", "fit_transform") and isinstance(node.func, ast.Attribute):
+            recv = node.func.value
+            recv_name = dotted(recv).split(".")[-1]
+            first = ast.unparse(node.args[0]) if node.args and hasattr(ast, "unparse") else ""
+            if PREPROC.search(recv_name) and not TRAIN_NAME.search(first.split("[")[0].split(".")[0]):
+                fname = getattr(self.func_stack[-1], "name", "<module>") if self.func_stack else "<module>"
+                self.preproc_fits.append((fname, node, recv_name))
         # leakage: fit before split in the same function
         if last == "train_test_split" and self.func_stack:
             fn = self.func_stack[-1]
@@ -233,6 +256,41 @@ class Visitor(ast.NodeVisitor):
                                         "test data")
                     break
         self.generic_visit(node)
+
+    # L2: selection by a test-set score -------------------------------
+    def visit_For(self, node):
+        scored = {}
+        for stmt in ast.walk(node):
+            if isinstance(stmt, ast.Assign) and isinstance(stmt.value, ast.Call) and \
+                    METRIC_FUNC.search(dotted(stmt.value.func).split(".")[-1] or ""):
+                names = {n.id for a in stmt.value.args for n in ast.walk(a) if isinstance(n, ast.Name)}
+                if any(TEST_NAME.search(n) for n in names):
+                    for t in stmt.targets:
+                        if isinstance(t, ast.Name):
+                            scored[t.id] = stmt
+        if scored:
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Compare):
+                    used = {n.id for n in ast.walk(sub) if isinstance(n, ast.Name)}
+                    if used & set(scored) and any("best" in n.lower() for n in used):
+                        self.hit("L2", sub, "the best model or configuration is chosen by a score computed on test data; "
+                                            "the reported test score is then optimistically biased. Select on a "
+                                            "validation split or by cross-validation within the training data")
+                        break
+        self.generic_visit(node)
+
+    visit_AsyncFor = visit_For
+
+    def finish(self):
+        """Module-level leads that need the whole file: preprocessing fitted in a function that does not split."""
+        if not self.split_funcs:
+            return
+        for fname, node, recv in self.preproc_fits:
+            if fname in self.split_funcs:
+                continue
+            where = ", ".join(sorted(self.split_funcs))
+            self.hit("L1", node, f"{recv} is fitted in `{fname}()`, but the train/test split happens in `{where}()`: "
+                                 "if this runs before the split, the test data shaped the preprocessing")
 
     def visit_Compare(self, node: ast.Compare):
         if self.check_script and any(isinstance(op, ast.In) for op in node.ops):
@@ -264,6 +322,11 @@ class Visitor(ast.NodeVisitor):
                         names.append(sub.id)
                     elif isinstance(sub, ast.Attribute):
                         names.append(sub.attr)
+            if any(re.search(r"seed", n, re.I) for n in names) and isinstance(
+                    node.value, (ast.List, ast.Tuple, ast.Constant, ast.Call)) and not is_rng_call(node.value):
+                val = ast.unparse(node.value) if hasattr(ast, "unparse") else "?"
+                if re.search(r"\d", val):
+                    self.seeds[self.path].append((node.lineno, val[:80], src_line(self.lines, node.lineno)))
             if any(RESULT_NAME.search(n) for n in names) and any(is_rng_call(x) for x in ast.walk(node.value)):
                 self.hit("X1", node, "random numbers assigned to a result-like variable: placeholder or synthetic data "
                                      "on a result path? Confirm it never reaches a reported number")
@@ -343,7 +406,9 @@ def scan(paths: list[str], excludes: list[str]) -> tuple[list[dict], dict, int]:
                         tree = ast.parse(text)
                     except SyntaxError:
                         continue
-                    Visitor(rel, lines, hits, seeds, defs, refs).visit(tree)
+                    v = Visitor(rel, lines, hits, seeds, defs, refs)
+                    v.visit(tree)
+                    v.finish()
                     if not re.search(r"(^|/)(tests?|testing)(/|$)|(^|/)test_|_test\.py$", rel):
                         for i, line in enumerate(lines, 1):
                             if TODO_RX.search(line):
@@ -374,6 +439,7 @@ TITLES = {
     "S3": "Swallowed exceptions", "S4": "Missing values replaced by constants",
     "R1": "Random draws inside conditions", "R2": "Random draws in only one branch",
     "P1": "Numbers hard-coded in figure text", "L1": "Preprocessing fitted before the train/test split",
+    "L2": "Selection by a test-set score",
     "G1": "Numbers checked by substring", "G2": "Shell matching pitfalls",
     "X1": "Placeholder or synthetic data on a result path", "X2": "Metric functions never used",
 }

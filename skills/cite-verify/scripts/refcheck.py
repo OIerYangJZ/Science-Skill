@@ -96,6 +96,13 @@ def first_author_ok(bib_first: str, cr_item: dict) -> bool:
     return bool(rf) and (rf == bf or rf.split()[-1:] == bf.split()[-1:] or rf in bf or bf in rf)
 
 
+def _with_subtitle(title: str, subtitle: str) -> str:
+    """Crossref stores "A Systematic Review" in a separate subtitle field; bibliographies cite both."""
+    if subtitle and subtitle.lower() not in title.lower():
+        return f"{title.rstrip(' :.')}: {subtitle}"
+    return title
+
+
 def record_from_crossref(cr: dict) -> dict:
     authors = []
     for a in cr.get("author") or []:
@@ -105,7 +112,7 @@ def record_from_crossref(cr: dict) -> dict:
             authors.append((a["name"], ""))
     return {
         "source": "Crossref",
-        "title": (cr.get("title") or [""])[0],
+        "title": _with_subtitle((cr.get("title") or [""])[0], (cr.get("subtitle") or [""])[0]),
         "authors": authors,
         "years": sorted(sch.crossref_years(cr)),
         "year": sch.crossref_year(cr),
