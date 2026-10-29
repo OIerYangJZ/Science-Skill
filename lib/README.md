@@ -1,13 +1,13 @@
-# lib：各 skill 共用的 Python 模块
+# lib: Python modules shared by the skills
 
-只依赖 Python 3.10+ 标准库。各 skill 的脚本通过 `os.path.realpath(__file__)` 定位到本目录，所以通过 `~/.claude/skills/<name>` 的软链接调用也能找到它。不要单独把某个 skill 目录复制到别处使用。
+Depends only on the Python 3.10+ standard library. Each skill's scripts locate this directory via `os.path.realpath(__file__)`, so it is found even when a skill is invoked through a symlink at `~/.claude/skills/<name>`. Do not copy an individual skill directory elsewhere to use it on its own.
 
-| 模块 | 内容 | 使用者 |
+| Module | Contents | Used by |
 |---|---|---|
-| `texutil.py` | 统一读取 `.tex`（跟随 `\input`）、`.docx`、`.md`、`.txt`、`.pdf`（需 pdftotext），保留位置映射；清洗为纯文本；定位摘要、引言、结论、参考文献、图注（LaTeX 命令、IMRaD 标题、Nature 式无标题引言、结构化摘要）；句子切分、引用和宏定位、区域标注 | 全部 |
-| `scholarly.py` | OpenAlex、Crossref、DataCite、arXiv、Europe PMC（PubMed、PMC 全文、bioRxiv/medRxiv）访问；严格标题匹配；arXiv 源码只在内存中解析；arXiv 限流时自动断路 | paper-polish、cite-verify、novelty-audit |
-| `bibtex.py` | BibTeX 与 RIS 读取、自由格式参考文献列表拆分、作者姓氏提取、LaTeX 转纯文本 | cite-verify |
-| `docxutil.py` | 只用标准库读取 Word `.docx`：标题样式和加粗短段落识别为章节，表格、公式占位；位置记为段落号 | 全部（通过 texutil.load_document） |
-| `statsutil.py` | t、F、χ²、r、z 的 p 值（正则化不完全 beta 和 gamma 函数） | number-audit stats |
+| `texutil.py` | Unified reading of `.tex` (following `\input`), `.docx`, `.md`, `.txt`, `.pdf` (requires pdftotext), preserving a position map; cleaning to plain text; locating the abstract, introduction, conclusion, references, and figure captions (LaTeX commands, IMRaD headings, Nature-style untitled introductions, structured abstracts); sentence splitting, locating citations and macros, region labeling | All |
+| `scholarly.py` | Access to OpenAlex, Crossref, DataCite, arXiv, Europe PMC (PubMed, PMC full text, bioRxiv/medRxiv); strict title matching; arXiv source parsed in memory only; automatic circuit breaker when arXiv rate-limits | paper-polish, cite-verify, novelty-audit |
+| `bibtex.py` | Reading BibTeX and RIS, splitting free-form reference lists, extracting author surnames, converting LaTeX to plain text | cite-verify |
+| `docxutil.py` | Reads Word `.docx` with the standard library only: heading styles and short bold paragraphs are recognized as sections, tables and equations become placeholders; positions are recorded as paragraph numbers | All (via texutil.load_document) |
+| `statsutil.py` | p-values for t, F, χ², r, z (regularized incomplete beta and gamma functions) | number-audit stats |
 
-网络访问只针对公开的元数据 API，不会发送个人信息。如需自己的配额，可设置 `OPENALEX_API_KEY`（OpenAlex 无 key 时所有人共用一个小的每日额度）和 `SCIENCE_SKILL_MAILTO`（Crossref polite pool）。
+Network access goes only to public metadata APIs; no personal information is sent. For your own quota, set `OPENALEX_API_KEY` (without a key, OpenAlex gives everyone one small shared daily allowance) and `SCIENCE_SKILL_MAILTO` (Crossref polite pool).

@@ -1,121 +1,121 @@
 ---
 name: novelty-audit
-description: 以证伪为目标审计论文的新颖性：把每条贡献拆成结果、技术、模型三部分，转写成相邻社区的说法（例如编译器下界 → 多遍流算法 / 通信复杂度 / advice complexity；血糖曲线下面积的"新模型" → 数值积分的梯形法则；空间插值 → 高斯过程回归），各学科通用，再从正向引用、反向引用、关键词和近期预印本四个方向找可能已有的结果、属于标准技术的证明和同期工作，逐篇阅读后给出每条贡献的新颖性判定、必须补引的文献和建议的表述。用于投稿前、写 "first / novel / to our knowledge" 之前、被审稿人质疑新颖性时，或用户问"这个结果是不是新的"时。不用于润色文字（paper-polish）或核对已有引用（cite-verify）。
-argument-hint: "[稿件 .tex/.docx/.md/.pdf 或 一句话的结果描述] [--claims C1,C2]"
+description: Audit the novelty of a paper with falsification as the goal — decompose each contribution into result, technique, and model, and translate it into the terms of neighboring communities (e.g. compiler lower bound → multi-pass streaming algorithms / communication complexity / advice complexity; a "new model" for the area under the blood-glucose curve → the trapezoidal rule of numerical integration; spatial interpolation → Gaussian process regression), applicable across disciplines; then search in four directions (forward citations, backward citations, keywords, and recent preprints) for possibly existing results, proofs that are standard techniques, and concurrent work; after reading each paper, give a novelty verdict for each contribution, the references that must be added, and suggested wording. Use when preparing a submission, before writing "first / novel / to our knowledge", when a reviewer questions novelty, or when the user asks "is this result new?". Not for polishing prose (paper-polish) or checking existing citations (cite-verify).
+argument-hint: "[manuscript .tex/.docx/.md/.pdf or one-sentence description of the result] [--claims C1,C2]"
 ---
 
-# novelty-audit：先试着证明"这不是新的"
+# novelty-audit: first try to prove "this is not new"
 
-## 这个 skill 针对的问题
+## The problem this skill addresses
 
-AI 检索文献时，倾向于找支持"我们是新的"的证据，漏掉审稿人会拿来对比的工作（见 `FAILURE_MODES.md` 第 5 条）。
+When AI searches the literature, it tends to look for evidence that supports "we are new" and misses the work that reviewers will use for comparison (see item 5 of `FAILURE_MODES.md`).
 
-Case A：作者团队认为主定理是新的，审计后的结论是：
+Case A: the author team believed the main theorem was new; the audit concluded:
 
-- 主定理是**标准的多遍流论证**：fooling set 加 Fano 不等式，再加 AMS 和 Guha–McGregor 的"p 遍等价于 2p−1 条消息"模拟。在理论计算机科学的审稿人看来，这是标准结果。
-- commitment toll 在经典的 **advice complexity** 文献里有先例（Böckenhauer 等人的 string guessing；Boyar 等人的综述）。
-- 7 篇必须补引的文献原稿都没有引，其中包括 2026 年的同期工作。
+- The main theorem is a **standard multipass streaming argument**: a fooling set plus Fano's inequality, plus the AMS and Guha–McGregor "p passes are equivalent to 2p−1 messages" simulation. To reviewers in theoretical computer science, this is a standard result.
+- The commitment toll has precedents in the classical **advice complexity** literature (string guessing by Böckenhauer et al.; the survey by Boyar et al.).
+- The original manuscript cited none of the 7 references that must be added, including concurrent work from 2026.
 
-这些文献在量子编译社区的检索词下几乎找不到，必须先把问题翻译成相邻社区的语言。
+These references are almost impossible to find with the search terms of the quantum compilation community; the problem must first be translated into the language of neighboring communities.
 
-跨学科的经典例子：Tai（Diabetes Care 17(2):152–154, 1994）提出了一个"确定葡萄糖耐量曲线下总面积的数学模型"，它其实就是数值积分里的梯形法则。用医学的说法去检索，找不到数学上的先例；换成数值分析的说法，立刻就能找到。
+A classic cross-disciplinary example: Tai (Diabetes Care 17(2):152–154, 1994) proposed "a mathematical model for the determination of total area under glucose tolerance curves", which is in fact the trapezoidal rule of numerical integration. Searching in medical terms finds no mathematical precedent; switching to the terms of numerical analysis finds it immediately.
 
-## 硬性规则
+## Hard rules
 
-1. **目标是证伪。** 每条贡献都先假设"已经有人做过"，然后去找证据。找不到时，结论写成"在 [数据库、检索式、日期] 范围内未发现"，不写"这是新的"。
-2. **读过才算。** 每个"已有 / 部分已有 / 标准技术"的判定，都必须基于读过的原文（至少摘要，涉及具体结果时读到对应的定理、表或节），并给出位置和原文摘录。凭记忆说"X 早就证明过"不算。
-3. **每次检索都记日志**（`lit_graph.py --log`），最终报告附上完整的检索日志。
-4. **只诊断，不改稿。** 产出写到 `novelty/<YYYY-MM-DD>/`（git 仓库内则加入 `.git/info/exclude`）。表述建议交给 paper-polish 或作者。
-5. 被引文献的元数据要核验，可直接用 cite-verify 的 `refcheck.py`，或 paper-polish 的 `exemplar_meta.py fetch`。
-6. 对话用中文；建议的论文表述用英文。
+1. **The goal is falsification.** For every contribution, first assume "someone has already done this", then look for evidence. If none is found, write the conclusion as "not found within [databases, queries, dates]", not as "this is new".
+2. **Only what has been read counts.** Every verdict of "known / partly known / standard technique" must rest on the source actually read (at least the abstract; for a specific result, read as far as the corresponding theorem, table, or section), and must give the location and a verbatim excerpt. Saying "X proved this long ago" from memory does not count.
+3. **Log every search** (`lit_graph.py --log`); attach the complete search log to the final report.
+4. **Diagnose only; do not edit the manuscript.** Write outputs to `novelty/<YYYY-MM-DD>/` (inside a git repository, add it to `.git/info/exclude`). Hand wording suggestions over to paper-polish or the author.
+5. Verify the metadata of cited references; you can directly use cite-verify's `refcheck.py` or paper-polish's `exemplar_meta.py fetch`.
+6. Talk to the user and write reports in the user's language; write suggested manuscript wording in English.
 
-## Phase 0：接收
+## Phase 0: Intake
 
-- 输入：稿件，或者用户对结果的描述。
-- 列出贡献：从摘要、引言、结论中提取每条"we prove / we show / we find / we develop / first / new / novel"主张，编号为 C1、C2……一般 2–6 条。
-- 读稿件已引用的最近工作和 Related Work，记下已经承认的前人工作，免得重复报告。
+- Input: the manuscript, or the user's description of the result.
+- List the contributions: extract every "we prove / we show / we find / we develop / first / new / novel" claim from the abstract, introduction, and conclusion, and number them C1, C2, …; typically 2–6.
+- Read the recent work already cited in the manuscript and its Related Work; note the prior work already acknowledged, so it is not reported again.
 
-## Phase 1：拆解与转写
+## Phase 1: Decompose and translate
 
-对每条贡献，按 `references/search-playbook.md` 的模板写一张卡片：
+For each contribution, write a contribution card following the template in `references/search-playbook.md`:
 
-1. **结果**：去掉本领域术语，用更一般的语言重述，例如数学、统计、算法或机制层面的语言。
-   - Case A："任何 p 遍扫描、跨切点状态为 S 的流算法，若计算一个单射的聚合，则 A + (2p−1)S ≥ m log K"。
-   - 示意："用分段线性插值计算采样曲线下的面积"。
-2. **技术或方法**：核心步骤，例如证明技巧（fooling set、Fano 不等式）、实验技术（CRISPR 筛选、单细胞测序）、统计或计量方法（混合效应模型、双重差分）、模型结构（注意力机制、图神经网络）。
-3. **模型**：哪些假设让结果成立，哪些是本领域特有的建模。
-4. **相邻社区与他们的叫法**：至少 3 个。同一个想法在不同学科常常有不同的名字，例如：
-   - 流算法里的 pass elimination；
-   - 数值分析里的梯形法则；
-   - 地统计学里的 kriging，在机器学习里叫高斯过程回归；
-   - 神经网络的反向传播，在自动微分里叫反向模式。
+1. **Result**: restate it without field-specific jargon, in more general language, e.g. at the level of mathematics, statistics, algorithms, or mechanisms.
+   - Case A: "for any p-pass streaming algorithm whose state across the cut is S, if it computes an injective aggregate, then A + (2p−1)S ≥ m log K".
+   - Illustration: "compute the area under a sampled curve by piecewise linear interpolation".
+2. **Technique or method**: the core steps, e.g. proof techniques (fooling set, Fano's inequality), experimental techniques (CRISPR screening, single-cell sequencing), statistical or econometric methods (mixed-effects models, difference-in-differences), model architectures (attention mechanisms, graph neural networks).
+3. **Model**: which assumptions make the result hold, and which modeling choices are specific to the field.
+4. **Neighboring communities and what they call it**: at least 3. The same idea often has different names in different disciplines, for example:
+   - pass elimination in streaming algorithms;
+   - the trapezoidal rule in numerical analysis;
+   - kriging in geostatistics, called Gaussian process regression in machine learning;
+   - backpropagation in neural networks, called reverse mode in automatic differentiation.
 
-   更多见 `references/search-playbook.md`。
-5. **检索式**：每个社区 2–4 条，用带引号的短语加 AND 提高精度。
+   See `references/search-playbook.md` for more.
+5. **Queries**: 2–4 per community; use quoted phrases joined with AND to improve precision.
 
-## Phase 2：四个方向的检索
+## Phase 2: Search in four directions
 
 ```
 L="python3 -I <skill-dir>/scripts/lit_graph.py"
 LOG=novelty/<date>/search_log.md
-# A 关键词（每个社区的检索式都跑一遍）
+# A Keywords (run every community's queries)
 $L search '"pass elimination" AND streaming' --log $LOG --out novelty/<date>/hits.md
-# B 正向：谁引用了本文所依赖的经典文献（往往有人做过同样的事）
-$L citing <经典文献 DOI> --match '"lower bound" AND pass' --sort cited --log $LOG --out novelty/<date>/hits.md
-# C 反向：最近邻文章引用了什么
-$L refs <最近邻 DOI 或 arXiv> --log $LOG --out novelty/<date>/hits.md
-# D 同期工作（最近 18 个月；默认同时查 arXiv、OpenAlex、Europe PMC，后者包括 bioRxiv 和 medRxiv）
+# B Forward: who cites the classic papers this work relies on (someone has often done the same thing)
+$L citing <DOI of the classic paper> --match '"lower bound" AND pass' --sort cited --log $LOG --out novelty/<date>/hits.md
+# C Backward: what the nearest-neighbor papers cite
+$L refs <nearest-neighbor DOI or arXiv> --log $LOG --out novelty/<date>/hits.md
+# D Concurrent work (last 18 months; by default queries arXiv, OpenAlex, and Europe PMC together, the last of which includes bioRxiv and medRxiv)
 $L recent '"phase folding" AND "T-count"' --days 540 --log $LOG --out novelty/<date>/hits.md
-# 生物医学 / 生命科学：PubMed、PMC 和预印本
+# Biomedicine / life sciences: PubMed, PMC, and preprints
 $L search '"gut microbiome" AND "social network"' --db europepmc --log $LOG --out novelty/<date>/hits.md
 ```
 
-再按领域补充（完整列表见 `references/search-playbook.md` 第 3 节）：
-- WebSearch，以及 Google Scholar 风格的短语检索；
-- 本领域的主要会议或期刊的近期目录；
-- 预印本平台：arXiv、bioRxiv、medRxiv、SSRN、ChemRxiv、OSF；
-- 注册库：ClinicalTrials.gov 查进行中的试验，PROSPERO 查系统综述方案，OSF Registries 查预注册研究；
-- 专家问答社区：MathOverflow、Cross Validated 等。
+Then supplement by field (full list in Section 3 of `references/search-playbook.md`):
+- WebSearch, and Google Scholar–style phrase searches;
+- recent tables of contents of the field's main conferences or journals;
+- preprint servers: arXiv, bioRxiv, medRxiv, SSRN, ChemRxiv, OSF;
+- registries: ClinicalTrials.gov for ongoing trials, PROSPERO for systematic review protocols, OSF Registries for preregistered studies;
+- expert Q&A communities: MathOverflow, Cross Validated, etc.
 
-arXiv 限流（429）时脚本会自动跳过 arXiv，并在日志里注明；之后再补查。
+When arXiv rate-limits (429), the script skips arXiv automatically and notes this in the log; run those searches again later.
 
-候选文献控制在每条贡献 10–30 篇。先按标题和摘要筛，再精读最相关的 3–8 篇。
+Keep candidates to 10–30 papers per contribution. Screen first by title and abstract, then read the 3–8 most relevant closely.
 
-## Phase 3：阅读与判定（可并行）
+## Phase 3: Reading and verdicts (can run in parallel)
 
-每条贡献派一个子代理，扮演"想证明这不是新结果的审稿人"。提示词见 `references/search-playbook.md`。子代理拿到：贡献卡片、候选列表、原稿的相关定理。子代理要读原文，对每篇候选给出关系：
+Assign one subagent per contribution, playing "a reviewer who wants to prove this is not a new result". The prompt is in `references/search-playbook.md`. The subagent receives the contribution card, the candidate list, and the relevant theorems of the manuscript. The subagent must read the sources and assign each candidate a relation:
 
-| 关系 | 含义 |
+| Relation | Meaning |
 |---|---|
-| P 已有 | 同样或更强的结果已发表 |
-| T 标准技术 | 证明用的是已知技术，结果本身可能是新的 |
-| S 特例或推论 | 本文结果是已知结果的特例，或可以直接推出 |
-| C 同期 | 近 18 个月内出现的相近工作 |
-| R 相关 | 应当引用，用于定位，但不威胁新颖性 |
-| I 无关 | 不相关 |
+| P already known | The same or a stronger result has been published |
+| T standard technique | The proof uses a known technique; the result itself may be new |
+| S special case or corollary | The paper's result is a special case of a known result, or follows directly from one |
+| C concurrent | Closely related work that appeared within the last 18 months |
+| R related | Should be cited for positioning, but does not threaten novelty |
+| I irrelevant | Not related |
 
-主会话复核每个 P、S 和 T 的判定：读原文对应位置，确认后才写入报告。
+The main session re-checks every P, S, and T verdict: read the corresponding location in the source, and write it into the report only after confirming it.
 
-## Phase 4：报告
+## Phase 4: Report
 
-写 `novelty/<date>/report.md`（中文），结论放最前：
+Write `novelty/<date>/report.md` (in the user's language), conclusions first:
 
-1. **每条贡献的判定**，四选一：
-   - 新的（在检索范围内）；
-   - 新在本领域的应用或建模，技术是标准的；
-   - 部分已有（说明差异在哪）；
-   - 已有。
+1. **A verdict for each contribution**, one of four:
+   - new (within the searched scope);
+   - new in its application or modeling in this field, with a standard technique;
+   - partly known (state where the difference lies);
+   - known.
 
-   每条附上依据：文献、定理号、原文摘录。
-2. **哪个社区会觉得它是标准的**。例如"流算法领域的审稿人会视为标准结果；程序语言和体系结构领域会觉得新"。这关系到投稿去向。
-3. **必须补引 / 建议补引**的文献清单（元数据已核验），并说明各自对应哪条贡献。
-4. **建议的表述**，例如 "The proof is a standard multipass streaming argument [AMS, Guha–McGregor]; what is specific to compilation is the fooling family and the accounting." 以及哪些 "first / novel" 措辞要删掉或限定。
-5. **想要更强的新颖性，需要什么新结果**。例如 Case A 中的"依赖 r 的 T 数下界"；或者"在另一人群中重复"、"用随机化设计检验因果"。
-6. **检索范围**：附上 `search_log.md`，写明没有覆盖的数据库和社区。
+   Support each verdict with evidence: the reference, theorem number, and verbatim excerpt.
+2. **Which community would consider it standard.** For example, "reviewers in streaming algorithms would regard it as a standard result; programming languages and computer architecture would find it new". This bears on where to submit.
+3. A list of references that **must be added / are recommended** (metadata verified), stating which contribution each one concerns.
+4. **Suggested wording**, e.g. "The proof is a standard multipass streaming argument [AMS, Guha–McGregor]; what is specific to compilation is the fooling family and the accounting.", and which "first / novel" phrasings to delete or qualify.
+5. **What new results would be needed for stronger novelty.** For example, "an r-dependent T-count lower bound" in Case A; or "replicate in another population", "test causality with a randomized design".
+6. **Search scope**: attach `search_log.md`, and state the databases and communities not covered.
 
-## 最终汇报（中文，简洁）
+## Final report to the user (concise, in the user's language)
 
-- 每条贡献一句话的判定。
-- 必须补引的文献数量和最关键的 2–3 篇。
-- 最大的新颖性风险，以及它是表述问题还是实质问题。
-- 报告和检索日志的路径。
+- A one-sentence verdict per contribution.
+- The number of references that must be added, and the 2–3 most important ones.
+- The biggest novelty risk, and whether it is a wording problem or a substantive one.
+- Paths to the report and the search log.

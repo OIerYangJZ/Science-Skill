@@ -1,111 +1,111 @@
-# 约定陷阱清单
+# Checklist of convention pitfalls
 
-每一项都要回答两个问题：
-1. 正文声称的约定是什么？
-2. 代码、工具或数据实际用的是什么？
+For every item, answer two questions:
+1. What convention does the text claim?
+2. What do the code, tools, or data actually use?
 
-答案以所固定版本的源码、仓库数据或原始记录为准，不以文档或记忆为准。
+Base the answers on the source code of the pinned version, the repository data, or the original records, not on documentation or memory.
 
-第 1–7 节适用于所有领域，第 8 节是各领域常见的附加项。
+Sections 1–7 apply to all fields; Section 8 lists common field-specific additions.
 
-## 1. 单位与量纲
+## 1. Units and dimensions
 
-- 单位换算：mg 与 µg、mmol/L 与 mg/dL、eV 与 J、天与周、货币与汇率；倍数前缀（k、M、G；KB 与 KiB）。
-- 每单位、每人、每例、每年：分母是什么，是否一致。
-- 名义值与实际值（通胀调整、基期年份）；购买力平价。
-- 浓度、剂量、比率的时间基准（每日剂量还是单次剂量）。
+- Unit conversions: mg vs. µg, mmol/L vs. mg/dL, eV vs. J, days vs. weeks, currencies and exchange rates; multiplier prefixes (k, M, G; KB vs. KiB).
+- Per unit, per person, per case, per year: what is the denominator, and is it consistent?
+- Nominal vs. real values (inflation adjustment, base year); purchasing power parity.
+- Time basis of concentrations, doses, and rates (daily dose or single dose).
 
-## 2. 百分比、比例与变化
+## 2. Percentages, proportions, and changes
 
-- 百分比与百分点："从 10% 升到 15%"是增加 5 个百分点，相对增加 50%。
-- 相对变化与绝对变化；倍数（fold change）与百分比变化；对数倍数（log2 FC）。
-- 比例的分母：全样本、有效应答，还是剔除缺失之后。
-- k/n 与百分比是否对得上（`number_audit.py stats` 会自动检查 "k of n (x%)"）。
-- 各组百分比之和是否为 100%（允许舍入）；各子组 n 之和是否等于总 n。
+- Percent vs. percentage points: "rising from 10% to 15%" is an increase of 5 percentage points, a relative increase of 50%.
+- Relative vs. absolute change; multiples (fold change) vs. percent change; log fold change (log2 FC).
+- Denominator of a proportion: the full sample, valid responses, or the sample after excluding missing data.
+- Whether k/n matches the percentage (`number_audit.py stats` checks "k of n (x%)" automatically).
+- Whether group percentages sum to 100% (allowing for rounding); whether the subgroup n values sum to the total n.
 
-## 3. 统计
+## 3. Statistics
 
-- 标准差（SD）与标准误（SE / SEM）；置信区间的水平（95% 还是 90%）；可信区间与置信区间。
-- 单侧与双侧检验；检验统计量、自由度、p 值三者是否一致（`stats` 会重算）。
-- 多重比较是否校正，用的什么方法；校正前后的 p 是否混用。
-- 比值类指标（OR、RR、HR）：置信区间在对数尺度上应大致对称；点估计必须落在区间内。
-- 回归系数的单位（每 1 单位还是每 1 SD）；是否标准化；参照组是什么。
-- "显著"的含义：统计显著还是实际意义上的重要。
-- 样本量前后是否一致：摘要、方法、表 1、流程图。
-- 重复测量或聚类数据，是否当作独立样本处理了。
+- Standard deviation (SD) vs. standard error (SE / SEM); the level of confidence intervals (95% or 90%); credible intervals vs. confidence intervals.
+- One-tailed vs. two-tailed tests; whether the test statistic, degrees of freedom, and p value are mutually consistent (`stats` recomputes them).
+- Whether multiple comparisons are corrected, and by which method; whether corrected and uncorrected p values are mixed.
+- Ratio measures (OR, RR, HR): the confidence interval should be roughly symmetric on the log scale; the point estimate must lie inside the interval.
+- Units of regression coefficients (per 1 unit or per 1 SD); whether they are standardized; what the reference group is.
+- What "significant" means: statistically significant or practically important.
+- Whether sample sizes are consistent throughout: abstract, methods, Table 1, flow diagram.
+- Whether repeated-measures or clustered data were treated as independent samples.
 
-## 4. 对数、计数与定义
+## 4. Logarithms, counts, and definitions
 
-- log₂、ln、log₁₀；bit 与 nat；dB 的定义（10 log 还是 20 log）。
-- 计数口径：事件数还是人数；就诊次数还是患者数；逻辑量还是物理量；是否计入一次性成本。
-- 平均的对象：对实例、对样本、对随机种子、对时间；均值还是中位数。
-- 同一个符号或缩写有两种含义（例如 K 既是字母表大小又是数域；t 既是时间又是 T-count）。
+- log₂, ln, log₁₀; bits vs. nats; the definition of dB (10 log or 20 log).
+- What is counted: events or people; visits or patients; logical or physical quantities; whether one-time costs are included.
+- What is averaged over: instances, samples, random seeds, time; mean or median.
+- One symbol or abbreviation with two meanings (e.g., K as both alphabet size and a number field; t as both time and T-count).
 
-## 5. 索引、范围与舍入
+## 5. Indexing, ranges, and rounding
 
-- 0 起还是 1 起；闭区间还是开区间（"≤ 22" 与 "< 22"）；年龄组的边界。
-- 整除与尾组：⌈m/g⌉ 组还是 m/g 组。
-- 舍入：先舍入再计算，还是先计算再舍入；不同位置的位数是否一致（2.41 与 2.4 可以并存，2.41 与 2.50 不行）。
-- 日期与时区；财年与日历年；研究期间的起止日期。
+- 0-based or 1-based; closed or open intervals ("≤ 22" vs. "< 22"); age-group boundaries.
+- Integer division and the remainder group: ⌈m/g⌉ groups or m/g groups.
+- Rounding: round then compute, or compute then round; whether the number of digits is consistent across locations (2.41 and 2.4 can coexist; 2.41 and 2.50 cannot).
+- Dates and time zones; fiscal vs. calendar years; start and end dates of the study period.
 
-## 6. 参数有效性
+## 6. Parameter validity
 
-- 正文给出的反例或下限（例如"常数至少为 c₀"），是否与图表所用的参数（更小的 c）冲突。
-- "其他参数最多给出 X"、"最优选择是 …"这类断言是否扫描过。
-- 依赖假设的数值，图注里是否写了这个前提。
-- 灵敏度分析与主分析的参数是否被混用。
+- Whether a counterexample or lower bound given in the text (e.g., "the constant is at least c₀") conflicts with a parameter used in figures or tables (a smaller c).
+- Whether claims such as "other parameters give at most X" or "the optimal choice is …" have been checked with a sweep.
+- For values that depend on an assumption, whether the caption states this premise.
+- Whether parameters from the sensitivity analyses and the main analysis are mixed up.
 
-## 7. 版本、数据与流程
+## 7. Versions, data, and pipelines
 
-- 软件、库、模型的版本是否固定，并与实际运行时的版本一致（lock 文件、manifest、`pip show`、R 的 `sessionInfo()`）。
-- 数据集的版本、下载日期、纳入和排除标准；预处理步骤的顺序。
-- 机器学习：训练集、验证集、测试集是否泄漏；指标是 micro 还是 macro 平均；报告的是最好一次运行还是多次的均值；随机种子数。
-- 冻结数据的记录版本是否与正文所写一致。
+- Whether software, library, and model versions are pinned and match the versions actually used at run time (lock files, manifests, `pip show`, R's `sessionInfo()`).
+- Dataset version, download date, inclusion and exclusion criteria; the order of preprocessing steps.
+- Machine learning: whether there is leakage between the training, validation, and test sets; whether metrics are micro- or macro-averaged; whether the best single run or the mean over several runs is reported; the number of random seeds.
+- Whether the recorded version of the frozen data matches what the text states.
 
-## 8. 各领域的附加项
+## 8. Field-specific additions
 
-### 物理 / 量子信息
+### Physics / quantum information
 
-- 距离与误差：算子范数、up-to-phase（projective）距离、diamond 距离、trace distance、fidelity 或 infidelity。它们之间常常差一个常数因子（如 2）或差一个平方。
-- 误差预算是每个门的还是总的；两部分各取 ε/2 还是各取 ε。
-- **实例（公开工具的源码事实）：** pygridsynth 2.0.0 的 `EpsilonRegion` 接受满足 Re(z̄u) ≥ sqrt(1 − ε²/4) 的 u，`error()` 返回 2·sqrt(1 − Re(z̄u)²)。这是 diamond 距离，所以 up-to-phase 算子距离 d_proj ≲ ε/2。把 ε 当成 d_proj 会让所有"达到的精度"和对应的门数整体偏移。用实测的 d_proj ÷ 名义 ε 就能发现：比值约为 0.5。
+- Distances and errors: operator norm, up-to-phase (projective) distance, diamond distance, trace distance, fidelity or infidelity. They often differ by a constant factor (e.g., 2) or by a square.
+- Whether the error budget is per gate or total; whether the two parts each get ε/2 or each get ε.
+- **Example (source-code facts about a public tool):** in pygridsynth 2.0.0, `EpsilonRegion` accepts u satisfying Re(z̄u) ≥ sqrt(1 − ε²/4), and `error()` returns 2·sqrt(1 − Re(z̄u)²). This is the diamond distance, so the up-to-phase operator distance d_proj ≲ ε/2. Treating ε as d_proj shifts all "achieved precisions" and the corresponding gate counts as a whole. Dividing the measured d_proj by the nominal ε reveals it: the ratio is about 0.5.
 
-### 生物医学 / 临床
+### Biomedical / clinical
 
-- 剂量单位和给药频率；体重、体表面积归一化。
-- 意向治疗（ITT）还是按方案（per-protocol）；失访如何处理。
-- 风险比、比值比、风险差混用；NNT 的计算基础。
-- 实验室指标的参考范围和单位制（SI 还是常规单位）。
+- Dose units and dosing frequency; normalization by body weight or body surface area.
+- Intention-to-treat (ITT) or per-protocol; how loss to follow-up is handled.
+- Mixing up risk ratios, odds ratios, and risk differences; the basis for computing the NNT.
+- Reference ranges and unit systems of laboratory measures (SI or conventional units).
 
-### 化学 / 材料
+### Chemistry / materials
 
-- 摩尔浓度与质量浓度；产率的计算基准（限量试剂）。
-- 能量单位（kcal/mol、kJ/mol、eV）；参考态和温度。
+- Molar vs. mass concentration; the basis for computing yield (limiting reagent).
+- Energy units (kcal/mol, kJ/mol, eV); reference states and temperature.
 
-### 经济 / 社会科学
+### Economics / social sciences
 
-- 名义与实际；基期；季节调整。
-- 李克特量表的编码方向（反向题是否反转）；量表总分与均分。
-- 加权与不加权估计；调查设计效应。
+- Nominal vs. real; base period; seasonal adjustment.
+- Coding direction of Likert scales (whether reverse-worded items are reversed); scale sum scores vs. mean scores.
+- Weighted vs. unweighted estimates; survey design effects.
 
-### 计算机 / 机器学习
+### Computer science / machine learning
 
-- 指标定义（F1 的平均方式；BLEU、ROUGE 的版本和分词）。
-- 计算预算：GPU 小时、参数量是否包括 embedding 层。
-- 吞吐和延迟的测量条件（batch size、硬件、预热）。
+- Metric definitions (how F1 is averaged; versions and tokenization of BLEU and ROUGE).
+- Compute budget: GPU hours; whether parameter counts include the embedding layers.
+- Measurement conditions for throughput and latency (batch size, hardware, warm-up).
 
-## 9. 核对动作模板
+## 9. Template for the verification steps
 
 ```
-# 1. 确定版本
-pip show <pkg>            # 或者读 lock 文件、manifest；R: packageVersion("<pkg>")
+# 1. Determine the version
+pip show <pkg>            # or read the lock file or manifest; R: packageVersion("<pkg>")
 python3 -c "import <pkg>, inspect; print(inspect.getsourcefile(<pkg>))"
-# 2. 在源码里找判定条件、误差函数或指标定义
+# 2. Find the acceptance criterion, error function, or metric definition in the source code
 grep -n "def error\|epsilon\|def f1\|average=" <path>
-# 3. 用仓库数据交叉验证（例如 实测误差 / 名义参数 的分布，或者用原始数据重算一个汇总值）
+# 3. Cross-check with repository data (e.g., the distribution of measured error / nominal parameter, or recompute a summary value from the raw data)
 python3 - <<'EOF'
 import json; d = json.load(open("data/....json")); ...
 EOF
 ```
 
-结论写成一句话："正文说 X；<工具> <版本> 实际是 Y（源码 `<file>:<line>`）；数据显示 …；受影响的数字有 …"。
+Write the conclusion as one sentence: "The text says X; <tool> <version> actually uses Y (source `<file>:<line>`); the data show …; the affected numbers are …".

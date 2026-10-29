@@ -1,148 +1,148 @@
 ---
 name: number-audit
-description: 投稿或发预印本前，审计论文中的每个数字（各学科通用，稿件可以是 LaTeX、Word、Markdown 或 PDF）：重算统计量与 p 值是否一致、k/n 与百分比是否对得上、比值指标的置信区间是否自洽；盘点全文数字；查同一符号前后取值是否一致、手抄的数字是否偏离数据宏；把摘要、引言、表格、图注里的关键数字追溯到生成它的数据或脚本，并在副本中重算；按工具源码核对外部工具的参数约定（例如误差范数的定义）；检查图表里是否还在用已被正文排除的参数。用户要求核对数字、复现数值、检查数据和正文是否一致，或在定稿、投稿、回复审稿前使用。不用于检查数学证明本身。
-argument-hint: "[稿件 .tex/.docx/.md/.pdf ...] [--repo 数据与代码目录] [--scope key|all]"
+description: Audit every number in a paper before submission or preprint posting (any discipline; the manuscript can be LaTeX, Word, Markdown, or PDF). Recompute whether test statistics and p values agree, whether k/n matches percentages, and whether confidence intervals of ratio measures are internally consistent; inventory all numbers in the text; check whether the same symbol keeps the same value throughout and whether hand-copied numbers have drifted from data macros; trace key numbers in the abstract, introduction, tables, and figure captions to the data or script that produced them, and recompute them in a scratch copy; check parameter conventions of external tools against the tool's source code (e.g., the definition of an error norm); check whether figures and tables still use parameters the text has ruled out. Use when the user asks to check numbers, reproduce values, or verify that data and text agree, or before finalizing, submitting, or responding to reviewers. Not for checking mathematical proofs themselves.
+argument-hint: "[manuscript .tex/.docx/.md/.pdf ...] [--repo data and code directory] [--scope key|all]"
 ---
 
-# number-audit：论文里的每个数字都能追溯、能重算
+# number-audit: every number in the paper can be traced and recomputed
 
-## 这个 skill 针对的问题
+## The problem this skill addresses
 
-AI 写作和整理稿件时，数字会悄悄漂移。在实证领域，最常见的是统计量与 p 值对不上、百分比与样本量对不上、摘要与表格里的数字不一致。下面三类则在作者本人的理论稿件里真实发生过（见仓库根目录 `FAILURE_MODES.md` 第 3 条）：
+When AI writes or edits a manuscript, numbers drift silently. In empirical fields, the most common cases are test statistics that do not match their p values, percentages that do not match sample sizes, and numbers that differ between the abstract and the tables. The following three types actually occurred in the author's own theoretical manuscripts (see item 3 of `FAILURE_MODES.md` in the repository root):
 
-1. **照搬工具约定。** 正文按一种误差定义解释某个外部合成工具的精度参数，但所用版本的源码用的是另一种距离，两者差一个常数因子，结果所有"实测"数字都整体偏移。仓库自己的数据里其实早有迹象：实测误差与名义参数之比一直约为 0.5。
-2. **同一符号两套数值。** 引言里的算例与主定理用了两种定义，同一个量前后相差约 4 倍，编辑在第 2 页就会看到。
-3. **已排除的参数仍在主图里。** 正文已经给出反例，说明某个常数必须更大；可主图和表格仍用旧的取值画"条件下界"。
+1. **Adopting a tool's convention unchecked.** The text interpreted the precision parameter of an external synthesis tool under one error definition, but the source code of the version used applies a different distance. The two differ by a constant factor, so every "measured" number was shifted as a whole. The repository's own data had shown the sign all along: the ratio of measured error to the nominal parameter was consistently about 0.5.
+2. **Two sets of values for one symbol.** The worked example in the introduction and the main theorem used two different definitions, so the same quantity differed by a factor of about 4 between them; an editor would see this on page 2.
+3. **Ruled-out parameters still in the main figure.** The text already gave a counterexample showing that a certain constant must be larger, yet the main figure and table still used the old value to plot a "conditional lower bound".
 
-此外还有"其他参数选择最多只能到 X"这类最优性断言，实际做一次参数扫描就能超过 X。
+There were also optimality claims of the form "other parameter choices can reach at most X", which a single actual parameter sweep exceeds.
 
-## 硬性规则
+## Hard rules
 
-1. **不改稿件、不改数据。** 产出写到仓库内的 `number_audit/<YYYY-MM-DD>/`；如果是 git 仓库，把 `number_audit/` 加进 `.git/info/exclude`，并告诉用户。修改建议只写成补丁或清单，用户同意后才改原稿。
-2. **重算一律在副本中进行。** 可以用 `git worktree add /tmp/na-<date> HEAD`，或复制到 `/tmp`，不在原目录里运行可能覆盖数据的脚本或分析流程（Python、R、Stata、MATLAB、Excel 均如此）。需要服务器或长时间计算的（例如 `ssh school-server`），先问用户。
-3. **脚本只给线索，结论靠重算或读源码。** trace 命中只说明"这个值在那里出现过"。确认它是同一个量、同样的设置和约定，才算 confirmed。
-4. **外部工具的约定以源码为准**，不以文档或记忆为准。要读所固定版本的已安装源码（`pip show -f <pkg>`，然后读源文件），并用仓库已有的数据交叉验证。
-5. 每个结论都标明状态：confirmed / mismatch / stats-inconsistent / orphan / convention-issue / superseded-parameter / unverifiable（并写明原因）。不要把"没查到问题"写成"正确"。
-6. 对话用中文；修改建议里的论文文本用英文。
+1. **Do not modify the manuscript or the data.** Write outputs to `number_audit/<YYYY-MM-DD>/` inside the repository; if it is a git repository, add `number_audit/` to `.git/info/exclude` and tell the user. Write proposed changes only as a patch or a list; edit the original manuscript only after the user agrees.
+2. **Always recompute in a scratch copy.** Use `git worktree add /tmp/na-<date> HEAD` or copy to `/tmp`; never run scripts or analysis pipelines that may overwrite data in the original directory (this applies equally to Python, R, Stata, MATLAB, and Excel). For anything that needs a server or a long computation (e.g., `ssh school-server`), ask the user first.
+3. **Scripts only give leads; conclusions come from recomputation or reading source code.** A trace hit only means "this value appears there". A number counts as confirmed only after you verify that it is the same quantity, with the same settings and conventions.
+4. **For external tools, the source code is authoritative on conventions**, not the documentation or memory. Read the installed source of the pinned version (`pip show -f <pkg>`, then read the source files), and cross-check against data already in the repository.
+5. Label every finding with a status: confirmed / mismatch / stats-inconsistent / orphan / convention-issue / superseded-parameter / unverifiable (with the reason stated). Do not report "no problem found" as "correct".
+6. Talk to the user and write reports in the user's language; manuscript text in proposed changes stays in the manuscript's language (English, or whatever language the manuscript is written in).
 
-## Phase 0：接收
+## Phase 0: Intake
 
-- 确定入口文件：主稿和补充材料，可以有多个，各自是独立文档。支持 `.tex`、`.docx`、`.md`、`.txt`；`.pdf` 需要 `pdftotext`。Word 稿件的位置以段落号 `¶n` 表示。
-- 确定数据与代码所在的目录，以及数据、脚本、生成表格（如 `generated/`）、冻结数据（如 `data/frozen/`）分别在哪里。只有稿件、没有数据和代码时，做 Phase 1、2、2b 和 5，trace 与重算标为 unverifiable，并请用户提供数据。
-- 找出排除项：大型原始数据、旧版稿件副本、投稿包、第三方代码。
-- 范围：`key`（默认）只审计摘要、引言、结论、图注、表格、定理陈述中的数字；`all` 审计全部数字。
-- 读仓库的 README 或复现说明，以及 `requirements.txt`、lock 文件，记录固定的工具版本。
+- Identify the entry files: the main manuscript and supplementary material; there may be several, each a separate document. Supported formats are `.tex`, `.docx`, `.md`, `.txt`; `.pdf` requires `pdftotext`. Locations in Word manuscripts are given as paragraph numbers `¶n`.
+- Identify the directory that holds the data and code, and where the data, scripts, generated tables (e.g., `generated/`), and frozen data (e.g., `data/frozen/`) each live. If there is only a manuscript with no data or code, run Phases 1, 2, 2b, and 5, mark trace and recomputation as unverifiable, and ask the user to provide the data.
+- Identify exclusions: large raw data, old copies of the manuscript, submission packages, third-party code.
+- Scope: `key` (default) audits only numbers in the abstract, introduction, conclusion, figure captions, tables, and theorem statements; `all` audits every number.
+- Read the repository's README or reproduction instructions, plus `requirements.txt` and lock files, and record the pinned tool versions.
 
-## Phase 1：盘点
+## Phase 1: Inventory
 
 ```
 python3 <skill-dir>/scripts/number_audit.py extract main.tex [supplement.tex] --out number_audit/<date>
 ```
 
-产出：
-- `numbers.md`：每个数字的位置、区域、所属符号和上下文；
-- `numbers.json`；
-- `conflicts.md`：同一符号的不同取值（先看具体符号，单字母变量多半只是不同设置），以及手抄的数据宏值（数据重新生成时，这些手抄值不会跟着更新）。
+Outputs:
+- `numbers.md`: the location, region, associated symbol, and context of each number;
+- `numbers.json`;
+- `conflicts.md`: different values of the same symbol (look at specific symbols first; for single-letter variables the differences are usually just different settings), and hand-copied data-macro values (these hand-copied values do not update when the data are regenerated).
 
-默认跳过小整数、年份、章节号、长度等；需要时加 `--all`。
+By default, small integers, years, section numbers, lengths, and the like are skipped; add `--all` when needed.
 
-## Phase 2：一致性
+## Phase 2: Consistency
 
-逐条处理 `conflicts.md`：
-- 不同设置下的不同取值（两个精度、两个例子）：确认文中写明了设置。
-- 真正的矛盾：同一设置下取值不同，记为 mismatch，并指出哪个是对的（以定理所用的定义为准）。
-- 手抄的宏值：建议改为引用宏。
+Work through `conflicts.md` item by item:
+- Different values under different settings (two precisions, two examples): confirm that the text states the setting.
+- Genuine contradictions (different values under the same setting): record as mismatch and state which value is correct (the definition used by the theorem is authoritative).
+- Hand-copied macro values: recommend referencing the macro instead.
 
-此外人工检查：
-- 同一个量在摘要、引言、表格、图注、cover letter 里是否一致，包括四舍五入后的位数（2.41 和 2.4 都可以，2.41 和 2.50 不行）。
-- 比值、百分比、"约 N 倍"，与分子分母是否对得上。
+In addition, check manually:
+- Whether the same quantity agrees across the abstract, introduction, tables, figure captions, and cover letter, including the digits after rounding (2.41 and 2.4 are both acceptable; 2.41 and 2.50 are not).
+- Whether ratios, percentages, and "about N times" statements match their numerators and denominators.
 
-## Phase 2b：统计一致性（实证论文必做）
+## Phase 2b: Statistical consistency (mandatory for empirical papers)
 
 ```
 python3 <skill-dir>/scripts/number_audit.py stats main.docx [supplement.docx] --out number_audit/<date>
 ```
 
-脚本做三类检查（类似 statcheck）：
-- 按报告的检验统计量和自由度重算 p 值：t、F、χ²、r、z，并考虑两者的舍入；
-- 核对 "k of n (x%)" 与百分比；
-- 检查 OR、RR、HR 的点估计是否落在置信区间内，以及区间在对数尺度上是否大致对称。
+The script runs three kinds of checks (similar to statcheck):
+- recompute p values from the reported test statistic and degrees of freedom for t, F, χ², r, and z, allowing for rounding of both;
+- check "k of n (x%)" against the percentage;
+- check whether point estimates of OR, RR, and HR fall inside their confidence intervals, and whether the intervals are roughly symmetric on the log scale.
 
-结果分为：
-- GROSS：显著性判断被翻转，必须查；
-- INCONSISTENT：数值对不上；
-- one-tailed?：只有按单侧检验才说得通，要确认正文是否写明了单侧；
-- CHECK：需要人工确认；
-- ok。
+Results are classified as:
+- GROSS: the significance decision is flipped; must be investigated;
+- INCONSISTENT: the numbers do not match;
+- one-tailed?: consistent only under a one-tailed test; confirm whether the text states that the test is one-tailed;
+- CHECK: needs manual confirmation;
+- ok.
 
-脚本只识别正文中 APA 风格的行内报告，例如 `t(23) = 2.45, p = .02`。表格里的统计量、其他报告格式，以及没有给出检验统计量的 p 值，都要人工检查。另外人工核对：
-- 样本量在摘要、方法、表 1、流程图里是否一致；
-- 各组之和是否等于总数；
-- 同一结果在摘要、正文、表格里的数值是否一致；
-- 均值与标准差是否合理（例如在量表范围内）。
+The script recognizes only APA-style inline reports in the text, such as `t(23) = 2.45, p = .02`. Statistics in tables, other reporting formats, and p values given without a test statistic all need a manual check. Also verify manually:
+- whether sample sizes agree across the abstract, methods, Table 1, and the flow diagram;
+- whether the group sizes sum to the total;
+- whether the same result has the same value in the abstract, main text, and tables;
+- whether means and standard deviations are plausible (e.g., within the scale range).
 
-## Phase 3：追溯
+## Phase 3: Trace
 
 ```
 python3 <skill-dir>/scripts/number_audit.py trace number_audit/<date>/numbers.json --repo <repo> \
     --regions abstract,introduction,conclusion,caption,table,theorem --exclude "submission/*" "arxiv/*"
 ```
 
-`trace.md` 把每个数字分为四类：
-- orphan：仓库里找不到；
-- text-only：只出现在其他文档里，没有计算来源；
-- traced：1–5 个数据或脚本来源；
-- ambiguous：这个值在仓库里很常见。
+`trace.md` sorts each number into one of four classes:
+- orphan: not found in the repository;
+- text-only: appears only in other documents, with no computational source;
+- traced: 1–5 data or script sources;
+- ambiguous: the value is common in the repository.
 
-候选来源按"数据 > 代码 > 文档"排序，再按与上下文的词重叠排序。
+Candidate sources are ranked by "data > code > documents", then by word overlap with the context.
 
-对每个关键数字：
-1. **traced**：打开候选来源，确认是同一个量、同样的设置、参数和约定。
-2. **ambiguous**：按上下文（变量名、文件名、设置）找出真正的来源；找不到就当 orphan 处理。
-3. **orphan 和 text-only**：在代码里搜计算过程（变量名、公式），找到生成它的脚本。没有脚本的派生数字（例如引言算例），在 `number_audit/<date>/recompute.py` 里按正文的定义重算。
-4. 每个数字的出处、重算命令和结果都记入 `ledger.md`（格式见下）。
+For each key number:
+1. **traced**: open the candidate source and confirm that it is the same quantity, with the same settings, parameters, and conventions.
+2. **ambiguous**: use the context (variable names, file names, settings) to find the true source; if you cannot find it, treat the number as an orphan.
+3. **orphan and text-only**: search the code for the computation (variable names, formulas) to find the script that produced it. For derived numbers with no script (e.g., worked examples in the introduction), recompute them in `number_audit/<date>/recompute.py` using the definitions in the text.
+4. Record each number's provenance, recomputation command, and result in `ledger.md` (format below).
 
-## Phase 4：重算
+## Phase 4: Recompute
 
-- 在副本里运行生成脚本，与正文的显示值按显示精度比较。
-- **算例要按定理所用的定义重算**。Case A 中前后相差约 4 倍的矛盾，就是这样发现的。
-- **最优性和极值断言要做参数扫描**，例如"其他参数最多给出 X"、"最优选择是 …"，记下扫描的范围和最优值。
-- 区间、比值和倍数，从原始数据重新计算端点。
+- Run the generating scripts in the scratch copy and compare the results with the values displayed in the text, at the displayed precision.
+- **Recompute worked examples using the definitions the theorem uses**. This is how the factor-of-about-4 contradiction in Case A was found.
+- **Run a parameter sweep for optimality and extremal claims**, e.g., "other parameters give at most X" or "the optimal choice is …"; record the sweep range and the best value found.
+- For intervals, ratios, and multiples, recompute the endpoints from the raw data.
 
-## Phase 5：约定审计
+## Phase 5: Convention audit
 
-按 `references/conventions.md` 的清单逐项检查。核心步骤：
-1. 列出所有把输出喂给论文数字的外部工具、库和数据集，以及固定的版本。
-2. 对每个工具，写下正文声称的约定。例如："F1 是 macro 平均"、"标准误按聚类稳健估计"、"剂量按体重归一化"、"合成工具的 ε 是 up-to-phase 算子距离"。
-3. 读该版本的源码，找出判定条件或误差函数的实际定义；再用仓库数据交叉验证，例如实测误差与名义 ε 的比值。
-4. 约定不符时，算出受影响的所有数字（正文、表格、图、摘要），列为 convention-issue。
+Go through the checklist in `references/conventions.md` item by item. Core steps:
+1. List every external tool, library, and dataset whose output feeds numbers in the paper, together with the pinned versions.
+2. For each tool, write down the convention the text claims. For example: "F1 is macro-averaged", "standard errors are cluster-robust", "doses are normalized by body weight", "the synthesis tool's ε is the up-to-phase operator distance".
+3. Read the source code of that version and find the actual definition of the acceptance criterion or error function; then cross-check with repository data, e.g., the ratio of measured error to nominal ε.
+4. When the convention does not match, compute all affected numbers (text, tables, figures, abstract) and list them as convention-issue.
 
-## Phase 6：参数有效性
+## Phase 6: Parameter validity
 
-- 图、表、图注中用到的每个参数取值（常数、阈值、截断），都在正文里搜一遍，看是否已被排除、被取代或标为不足，例如 "requires c ≥"、"counterexample"、"fails"、"superseded"。
-- 已被排除的参数仍以"有效界"的身份出现在主图或表里的，列为 superseded-parameter。
-- 依赖猜想或假设的数值，检查图注是否写明了这个前提。
+- For every parameter value used in figures, tables, and captions (constants, thresholds, cutoffs), search the text to see whether it has been ruled out, superseded, or marked as insufficient, e.g., "requires c ≥", "counterexample", "fails", "superseded".
+- List as superseded-parameter any ruled-out parameter that still appears in a main figure or table as a "valid bound".
+- For values that depend on a conjecture or assumption, check whether the caption states this premise.
 
-## Phase 7：报告
+## Phase 7: Report
 
-写 `number_audit/<date>/report.md`（中文），结论放最前：
+Write `number_audit/<date>/report.md` (in the user's language), with conclusions first:
 
-1. **必须修改**：mismatch、stats-inconsistent（尤其是 GROSS）、convention-issue、superseded-parameter，以及在关键位置上的 orphan。每条给出位置、现值、正确值、依据和受影响的其他位置。
-2. **建议修改**：手抄的宏值、四舍五入不一致、缺少设置说明的取值。
-3. **已确认**：数量，以及完整的出处表 `ledger.md`。
-4. **无法核实**：列出原因，例如需要服务器、缺数据、脚本跑不起来。
-5. 复现命令。
+1. **Must fix**: mismatch, stats-inconsistent (especially GROSS), convention-issue, superseded-parameter, and orphans in key locations. For each, give the location, current value, correct value, evidence, and the other affected locations.
+2. **Should fix**: hand-copied macro values, inconsistent rounding, values without a statement of their setting.
+3. **Confirmed**: the count, plus the full provenance table `ledger.md`.
+4. **Unverifiable**: list the reasons, e.g., needs a server, missing data, script does not run.
+5. Reproduction commands.
 
-`ledger.md` 的格式：
+Format of `ledger.md`:
 
-| id | 位置 | 显示值 | 状态 | 来源（文件:行 / 脚本 + 命令） | 重算值 | 约定 / 设置 | 备注 |
+| id | location | displayed value | status | source (file:line / script + command) | recomputed value | convention / setting | notes |
 |---|---|---|---|---|---|---|---|
 
-可选：另写一个修改补丁 `fixes.patch`，或者一张逐处替换表，供用户审核后再应用。
+Optional: also write a patch `fixes.patch`, or a location-by-location replacement table, for the user to review before it is applied.
 
-## 最终汇报（中文，简洁）
+## Final report to the user (concise, in the user's language)
 
-- 必须修改的问题有几条，各一句话说明。
-- 关键数字有多少已确认、多少无法核实。
-- 报告和出处表的路径。
-- 需要用户决定的事项，例如是否允许在服务器上重算。
+- How many must-fix issues there are, with one sentence on each.
+- How many key numbers are confirmed and how many are unverifiable.
+- Paths to the report and the provenance table.
+- Decisions the user needs to make, e.g., whether to allow recomputation on a server.

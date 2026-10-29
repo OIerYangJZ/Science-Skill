@@ -1,26 +1,26 @@
-# AI 辅助科研的已知失效模式
+# Known failure modes of AI-assisted research
 
-这个库里的每个 skill 都针对下表中的一种失效模式。表中的证据都来自作者本人项目中真实发生过的情况，不收录猜测。遇到新问题时，先在这里登记症状和证据；同类问题出现两次以上，再考虑写成 skill。
+Each skill in this library targets one failure mode in the table below. All evidence in the table comes from things that actually happened in the author's own projects; speculation is not included. When you encounter a new problem, first record its symptoms and evidence here; consider turning it into a skill only after the same kind of problem has occurred twice or more.
 
-目前的证据都来自量子信息领域，但这些失效模式并不限于这个领域，skill 也按跨学科的方式实现。例如：
-- 第 1、2 条在临床和社会科学中表现为把关联写成因果，或者在探索性结果上过度限定、不敢下结论；
-- 第 3 条在实证研究中表现为统计量与 p 值不一致。
+So far all of the evidence comes from quantum information, but these failure modes are not limited to that field, and the skills are implemented to work across disciplines. For example:
+- Items 1 and 2 show up in clinical and social science as writing associations as causation, or as over-hedging exploratory results and shying away from any conclusion;
+- Item 3 shows up in empirical research as test statistics that are inconsistent with their p-values.
 
-欢迎在"真实证据"一列补充其他领域的案例。
+Cases from other fields are welcome in the "Observed evidence" column.
 
-| # | 失效模式 | 症状 | 真实证据 | 对策 |
+| # | Failure mode | Symptoms | Observed evidence | Countermeasure |
 |---|---|---|---|---|
-| 1 | **防御性写作，新意被埋没** | 限定语层层叠加，"we do not claim" 单独成句，结果被埋在后面，贡献等权重罗列，缺口不点名前人 | 一篇稿子两次被编辑以 "lack of clarity" 拒稿；摘要 497 词，主结果在第 7 句（`skills/paper-polish/references/case-studies.md`，Case A） | ✅ `paper-polish` |
-| 2 | **反向过冲** | 被要求"写得有力"时，把条件结果写成无条件结果；滥用 law、first、optimal；用稻草人基线算倍数 | 一次模拟审稿指出：依赖未证假设的结论在摘要里写得像已成立；标题用了比证明内容更强的名词；摘要以在实际参数下为空的渐近结果开头（Case B） | ✅ `paper-polish` 的 claim ledger；可独立成 `claim-audit` |
-| 3 | **数字与约定漂移** | 照搬工具的默认约定、不读源码；同一符号前后用两套数值；已被反例排除的参数仍画在主图里 | 外部工具的精度参数按错误的距离定义解释，导致所有"实测"数字整体偏移；同一个量在引言算例和主定理里相差约 4 倍；已被正文反例排除的常数仍用于主图 | ✅ `number-audit` |
-| 4 | **文献元数据错误或幻觉** | 卷号、作者、机构、年份写错，甚至编造文献 | 用户的调研文件中查出 8 处错误，其中一篇的机构和硬件平台整个写错 | ✅ `cite-verify`（paper-polish 的范文核验也用同一套接口） |
-| 5 | **新颖性自我确认** | AI 检索时倾向于找支持"我们是新的"的文献，漏掉会被审稿人拿来对比的工作 | 主定理被判定为标准的多遍流论证，Guha–McGregor 等关键文献原稿未引用（Case A） | ✅ `novelty-audit` |
-| 6 | **讨好式的进展汇报** | 用户反复要求攻克某个开放问题时，AI 把部分进展说成突破，或者反复尝试已经失败过的路线 | 长期数学攻关中被反复要求"推到最优"时，必须如实说明所有路线都归约到同一个未解决的命题；失败路线需要建立索引，并标明"不要重做" | ✅ `dead-end-ledger` |
-| 7 | **模拟审稿缺乏独立性** | 审稿子代理读了作者笔记后被带偏；子代理声称的错误没有经过复核就被采纳 | 一次模拟审稿刻意不读作者的联合报告；它提出的几处错误由主会话逐项复算，多数成立，一项需要修正细节 | ✅ `mock-review`（paper-polish 的 Phase 7 是轻量版） |
-| 8 | **投稿去向判断凭印象** | 期刊的定位、门槛、费用、截稿日期靠记忆，导致误判 | 某次调研核对官方页面后，才发现 ACM TQC 是期刊而不是会议、STOC 2027 有新的 LLM 披露政策等 | 候选 `venue-fit`：只采用官方页面上的信息，并注明核对日期 |
+| 1 | **Defensive writing buries the novelty** | Hedges stacked layer upon layer; "we do not claim" as a standalone sentence; results buried further back; contributions listed with equal weight; the gap is stated without naming prior work | A manuscript was rejected twice by editors for "lack of clarity"; the abstract was 497 words, with the main result in sentence 7 (`skills/paper-polish/references/case-studies.md`, Case A) | ✅ `paper-polish` |
+| 2 | **Overshooting in the opposite direction** | When asked to "write more forcefully", stating conditional results as unconditional; overusing law, first, optimal; computing improvement factors against straw-man baselines | One mock review pointed out that a conclusion depending on an unproven assumption read in the abstract as if it were established; the title used a stronger noun than what the proof delivers; the abstract opened with an asymptotic result that is vacuous at practical parameters (Case B) | ✅ the claim ledger in `paper-polish`; could become a standalone `claim-audit` |
+| 3 | **Drift in numbers and conventions** | Copying a tool's default conventions without reading its source code; the same symbol taking two sets of values in different places; parameters already ruled out by a counterexample still plotted in the main figure | An external tool's precision parameter was interpreted under the wrong distance definition, shifting all "measured" numbers systematically; the same quantity differed by a factor of about 4 between a worked example in the introduction and the main theorem; a constant already ruled out by a counterexample in the text was still used in the main figure | ✅ `number-audit` |
+| 4 | **Erroneous or hallucinated bibliographic metadata** | Wrong volume numbers, authors, affiliations, or years, or even fabricated references | 8 errors were found in the user's literature survey file; for one paper, the affiliation and hardware platform were entirely wrong | ✅ `cite-verify` (the exemplar-paper verification in paper-polish uses the same interface) |
+| 5 | **Self-confirming novelty** | When searching, AI tends to find literature supporting "we are new" and misses work that reviewers will use for comparison | The main theorem was judged to be a standard multi-pass streaming argument; the original manuscript did not cite key references such as Guha–McGregor (Case A) | ✅ `novelty-audit` |
+| 6 | **Sycophantic progress reporting** | When the user repeatedly asks to crack an open problem, AI presents partial progress as a breakthrough, or repeatedly retries routes that have already failed | In a long-running mathematical effort, when repeatedly asked to "push it to the optimum", it was necessary to state honestly that all routes reduce to the same unsolved proposition; the failed routes needed an index, marked "do not redo" | ✅ `dead-end-ledger` |
+| 7 | **Mock review lacking independence** | Reviewer subagents are led astray after reading the author's notes; errors claimed by subagents are accepted without verification | One mock review deliberately did not read the author's joint report; the main session recomputed each of the errors it raised one by one, most held up, and one needed a correction in its details | ✅ `mock-review` (Phase 7 of paper-polish is a lightweight version) |
+| 8 | **Choosing where to submit based on impressions** | A journal's positioning, bar, fees, and deadlines are recalled from memory, leading to misjudgments | Only after checking official pages during one survey was it found that ACM TQC is a journal rather than a conference, that STOC 2027 has a new LLM disclosure policy, and so on | Candidate `venue-fit`: use only information from official pages, and note the date it was checked |
 
-## 什么时候写新 skill
+## When to write a new skill
 
-- 同一失效模式至少出现过两次，或者出现一次就造成了实际损失（例如被拒稿、发表了错误数字）。
-- 对策能写成可执行的流程，最好再配一个能检查结果的脚本，而不只是"注意 X"这样的提醒。
-- 照 `templates/SKILL_TEMPLATE.md` 写，写完在上表登记。
+- The same failure mode has occurred at least twice, or it occurred once and caused real damage (e.g., a rejection, or wrong numbers in print).
+- The countermeasure can be written as an executable procedure, ideally accompanied by a script that checks the results, rather than just a reminder like "watch out for X".
+- Write it following `templates/SKILL_TEMPLATE.md`, and register it in the table above when done.

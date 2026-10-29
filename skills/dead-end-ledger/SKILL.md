@@ -1,119 +1,119 @@
 ---
 name: dead-end-ledger
-description: 长期推进一个研究目标时使用（各学科通用：攻克开放问题或猜想、让一个实验或测量做成、提升一个模型或方法的指标、验证一个假设），用一份研究账本如实记录进展。账本内容包括：顶部一行精确的状态句；分级的结果（经独立复核 / 未复核 / 条件性 / 初步 / 阴性 / 撤回）；带范围或样本的证据；按可行性排序的开放目标；已试路线（证明思路、实验方案、分析或模型改动），以及每条卡在哪里、什么条件下才值得重开；障碍索引。每次尝试新路线之前，先查账本避免重复；每次结束后更新账本；结果要经独立复核（证明审查、重复实验、他人重跑）才能升级；向用户汇报时只说账本支持的话。用户要求"继续推"、"解决 X"、"把这个做出来"、"汇报进展"，或者反复要求同一个目标时都应使用。
-argument-hint: "[账本路径 LEDGER.md] [init|before|record|report]"
+description: Use when pushing one research goal forward over a long period (any discipline — attacking an open problem or conjecture, getting an experiment or measurement to work, improving a metric of a model or method, testing a hypothesis), to record progress honestly in a research ledger. The ledger contains a precise one-line status sentence at the top; graded results (independently verified / unverified / conditional / preliminary / negative / retracted); evidence with its range or sample; open targets ranked by feasibility; routes tried (proof ideas, experimental protocols, analysis or model changes), each with where it got stuck and under what conditions it is worth reopening; and a barrier index. Before trying each new route, check the ledger for duplicates; update the ledger at the end of each session; upgrade a result only after independent verification (proof review, replicated experiment, re-run by someone else); tell the user only what the ledger supports. Also use whenever the user asks to "keep pushing", "solve X", "make this work", or "report progress", or repeatedly asks for the same goal.
+argument-hint: "[ledger path LEDGER.md] [init|before|record|report]"
 ---
 
-# dead-end-ledger：如实记录研究进展，不重走死路
+# dead-end-ledger: record research progress honestly, without re-treading dead ends
 
-## 这个 skill 针对的问题
+## The problem this skill addresses
 
-用户反复要求推进同一个目标时，AI 容易出现两种情况（见 `FAILURE_MODES.md` 第 6 条）：
-1. **讨好式汇报**：把部分进展、启发式论证、一次跑通的实验、一个有利的随机种子，说成"基本解决"、"只差一小步"、"效果显著"。
-2. **重走死路**：换个说法重试已经失败过的路线，又停在同一个地方。数学上表现为同一个障碍，实验上表现为同一个技术问题，机器学习上表现为同一类改动在验证集上无效。
+When the user repeatedly asks to push the same goal forward, AI tends to fall into two patterns (see `FAILURE_MODES.md`, item 6):
+1. **Sycophantic progress reporting**: presenting partial progress, a heuristic argument, an experiment that worked once, or a favorable random seed as "essentially solved", "just one small step away", or "a significant effect".
+2. **Re-treading dead ends**: retrying an already-failed route under a different framing and stopping at the same place again. In mathematics this shows up as the same barrier; in experiments, as the same technical problem; in machine learning, as the same kind of change having no effect on the validation set.
 
-这两种情况在各类研究中都会出现，例如：
-- 数学：反复尝试已被证明行不通的证明思路；
-- 实验室：反复用同一类条件优化一个注定不出结果的反应或测量；
-- 机器学习：把一次侥幸的提升当成方法有效；
-- 社会科学：把探索性分析得到的结论当成已确认的发现。
+Both patterns occur in every kind of research, for example:
+- Mathematics: repeatedly trying a proof idea that has already been shown not to work;
+- Laboratory: repeatedly optimizing, with the same kind of conditions, a reaction or measurement that is bound to give no result;
+- Machine learning: taking a lucky one-time improvement as evidence that the method works;
+- Social science: treating conclusions from an exploratory analysis as confirmed findings.
 
-作者本人一次长期的数学攻关是这样处理的，可作范例：
-- 用户反复要求把一个已证的界推进到猜想中的最优值。正确的做法是如实说明"所有路线都归约到同一个未解决的命题"，并维护一份失败路线索引，标明"不要重做"。
-- 作者的 `HANDOFF.md` 就是一份好账本，本 skill 以它为模板：顶部状态行写明 "not reached"；有已证结果表、带覆盖范围的数值证据表、按可行性排序的开放目标，以及每条路线止于何处。
-- 研究笔记开头写状态声明（"The requested estimate (15) has not been proved. No … is claimed."），也是值得保留的习惯。
+The author handled one long-running mathematical effort as follows; it can serve as an example:
+- The user repeatedly asked to push a proven bound to the conjectured optimal value. The right response was to state honestly that "all routes reduce to the same unsolved proposition", and to maintain an index of failed routes marked "do not redo".
+- The author's `HANDOFF.md` is a good ledger, and this skill uses it as its template: the status line at the top says "not reached"; it has a table of proven results, a table of numerical evidence with coverage ranges, open targets ranked by feasibility, and where each route stops.
+- Opening each research note with a status declaration ("The requested estimate (15) has not been proved. No … is claimed.") is also a habit worth keeping.
 
-## 硬性规则
+## Hard rules
 
-1. **状态只按账本说。** 给用户的进展汇报里，每个"证明了 / 做成了 / 有效 / 显著"都要对应账本中 VERIFIED 的条目。未经复核的写"已完成，尚未独立复核"；条件性的结果，条件写在同一句里；初步的结果标明是初步的。
-2. **动手前先查重。** 每条新路线都要先运行 `ledger.py search`。与已失败路线相似时，必须先写出"这次哪里不同、怎样越过已记录的障碍"。写不出来就不重试，并如实告诉用户。
-3. **失败也要记**，阴性结果同样要记。每条失败的路线写明止于哪一步或哪个障碍、证据在哪、什么新输入出现时才值得重开。
-4. **升级为 VERIFIED 需要独立复核**，复核者和日期写进账本：
-   - 证明：派一个只读证明、不读作者笔记的子代理逐步核对，或者用 mock-review；
-   - 实验：独立重复（换批次、换操作者或换样本），或者至少由他人用原始数据重算；
-   - 计算或机器学习：由他人或在干净环境中从头重跑；多个随机种子；在未参与调参的数据上评估。
+1. **State status only as the ledger records it.** In progress reports to the user, every "proved / achieved / works / significant" must correspond to a VERIFIED entry in the ledger. For unverified results, write "completed, not yet independently verified"; for conditional results, state the condition in the same sentence; mark preliminary results as preliminary.
+2. **Check for duplicates before starting.** Run `ledger.py search` before every new route. If the route resembles a failed one, first write down "what is different this time, and how it gets past the recorded barrier". If you cannot write this, do not retry, and tell the user so honestly.
+3. **Record failures too**, and record negative results as well. For every failed route, state the step or barrier where it stops, where the evidence is, and what new input would make it worth reopening.
+4. **Upgrading to VERIFIED requires independent verification**; record the verifier and the date in the ledger:
+   - Proofs: dispatch a subagent that reads only the proof, not the author's notes, to check it step by step, or use mock-review;
+   - Experiments: independent replication (different batch, operator, or sample), or at least a recomputation from the raw data by someone else;
+   - Computation or machine learning: a re-run from scratch by someone else or in a clean environment; multiple random seeds; evaluation on data not used for tuning.
 
-   复核发现错误时，状态改为 RETRACTED 并记录原因，不删除条目。
-5. **笔记开头写状态声明**，说清楚这份笔记确立了什么、没有确立什么。
-6. 账本放在研究目录里，与笔记放在一起。不推送、不提交，除非用户要求；如果仓库对提交内容有规定，照规定执行。
-7. 对话用中文；账本和笔记的语言跟随现有材料。
+   If verification finds an error, change the status to RETRACTED and record the reason; do not delete the entry.
+5. **Open each note with a status declaration** that states clearly what the note establishes and what it does not.
+6. Keep the ledger in the research directory, alongside the notes. Do not push or commit unless the user asks; if the repository has rules about what may be committed, follow them.
+7. Talk to the user in the user's language; the ledger and notes follow the language of the existing material.
 
-## 状态词
+## Status words
 
-| 用于 | 状态 | 含义 | 各领域的对应 |
+| Applies to | Status | Meaning | Field-specific equivalents |
 |---|---|---|---|
-| 结果 | VERIFIED | 经独立复核 | 证明经审查；实验已重复；分析经他人重跑 |
-| 结果 | UNVERIFIED | 已完成，未经独立复核 | 写出的证明；单次实验；单次运行 |
-| 结果 | CONDITIONAL(H) | 在条件 H 下成立，H 写在括号里 | 依赖猜想；依赖识别假设；只在某数据集上成立 |
-| 结果 | PRELIMINARY | 初步结果 | 启发式论证；预实验；探索性分析；趋势 |
-| 结果 | NEGATIVE | 检验过，不成立 | 反例；阴性结果；改动无效 |
-| 结果 | RETRACTED | 复核发现错误，已撤回（保留条目和原因） | — |
-| 路线 | FAILED / PARTIAL / SUPERSEDED / IN-PROGRESS / SUCCEEDED | SUCCEEDED 要链接到结果表的 ID | 证明思路、实验方案、分析、模型改动 |
+| Result | VERIFIED | Independently verified | Proof reviewed; experiment replicated; analysis re-run by someone else |
+| Result | UNVERIFIED | Completed, not independently verified | Written-up proof; single experiment; single run |
+| Result | CONDITIONAL(H) | Holds under condition H, with H written in the parentheses | Depends on a conjecture; depends on identification assumptions; holds only on a particular dataset |
+| Result | PRELIMINARY | Preliminary result | Heuristic argument; pilot experiment; exploratory analysis; trend |
+| Result | NEGATIVE | Tested; does not hold | Counterexample; negative result; change had no effect |
+| Result | RETRACTED | Verification found an error; retracted (entry and reason kept) | — |
+| Route | FAILED / PARTIAL / SUPERSEDED / IN-PROGRESS / SUCCEEDED | SUCCEEDED must link to an ID in the results table | Proof ideas, experimental protocols, analyses, model changes |
 
-脚本也接受 PROVED-REVIEWED、PROVED-UNREVIEWED、REPLICATED、HEURISTIC、NULL 等领域写法，会自动对应到上表的状态词。
+The script also accepts field-specific spellings such as PROVED-REVIEWED, PROVED-UNREVIEWED, REPLICATED, HEURISTIC, and NULL, and maps them automatically to the status words in the table above.
 
-## Phase 0：建立或接管账本
+## Phase 0: Create or take over the ledger
 
-- **已有账本**（`LEDGER.md`，或类似 `HANDOFF.md` 的文档）：先读，再运行 `ledger.py status` 和 `lint`。格式不同的，按 `references/ledger-format.md` 迁移，保留原有的节号指针；迁移前先告诉用户。
-- **没有账本**：
+- **Existing ledger** (`LEDGER.md`, or a document like `HANDOFF.md`): read it first, then run `ledger.py status` and `lint`. If the format differs, migrate it according to `references/ledger-format.md`, preserving the existing section-number pointers; tell the user before migrating.
+- **No ledger**:
   ```
-  python3 <skill-dir>/scripts/ledger.py init <research-dir>/LEDGER.md --goal "<精确、可检验的目标陈述>"
+  python3 <skill-dir>/scripts/ledger.py init <research-dir>/LEDGER.md --goal "<precise, testable goal statement>"
   ```
-  然后从现有笔记、实验记录、运行日志中补录已知结果、失败路线和障碍。补录时每个状态都要有出处；拿不准的标为 PRELIMINARY 或 UNVERIFIED，不要往高里标。
-- **目标陈述要可检验。** 例如：
-  - "把界从 a 提升到 b（无条件）"；
-  - "产率达到 80% 以上，且可重复"；
-  - "在 X 基准上超过最强基线 2 个点（5 个种子的均值）"。
+  Then backfill known results, failed routes, and barriers from existing notes, lab records, and run logs. Every status entered while backfilling needs a source; mark anything uncertain as PRELIMINARY or UNVERIFIED, and do not err on the high side.
+- **Make the goal statement testable.** For example:
+  - "Improve the bound from a to b (unconditionally)";
+  - "Reach a yield above 80%, reproducibly";
+  - "Beat the strongest baseline on benchmark X by 2 points (mean over 5 seeds)".
 
-  不要写成"改进方法"这种无法判断是否达到的说法。
+  Do not write something like "improve the method", for which there is no way to tell whether it has been achieved.
 
-## Phase 1：动手之前（before）
+## Phase 1: Before starting (before)
 
-1. 用一段话写下新想法：路线、关键步骤、预期得到什么、怎样判断成败。判断标准要事先写下，以免事后挑结果。
-2. 查重：
+1. Write the new idea down in one paragraph: the route, the key steps, what you expect to obtain, and how success or failure will be judged. Write the criteria down in advance, so that results are not cherry-picked after the fact.
+2. Check for duplicates:
    ```
-   python3 <skill-dir>/scripts/ledger.py search LEDGER.md "<想法>" --notes <笔记目录>
+   python3 <skill-dir>/scripts/ledger.py search LEDGER.md "<idea>" --notes <notes-dir>
    ```
-3. 读命中的条目和笔记段落。如果有相似的 FAILED 路线，写出"差异陈述"：这次用了什么那次没有的输入，为什么它能越过"止于"列记录的障碍。
-4. 写不出差异陈述，就不做。向用户说明这条路线已经试过、卡在哪里，并给出账本中还没试过的方向。
+3. Read the matching entries and note passages. If there is a similar FAILED route, write a "difference statement": what input this attempt uses that the earlier one did not, and why it can get past the barrier recorded in the "Stops at" column.
+4. If you cannot write a difference statement, do not do it. Tell the user that this route has already been tried and where it got stuck, and offer directions in the ledger that have not been tried yet.
 
-## Phase 2：尝试
+## Phase 2: Attempt
 
-- 新建笔记，第一段就是状态声明（模板见 `references/ledger-format.md`）。
-- 计算、分析、实验都要留下可复现的记录：脚本和命令、参数、随机种子、样本、批次、仪器设置。
-- 每个声称的结论都标明证据等级。
+- Create a new note whose first paragraph is the status declaration (template in `references/ledger-format.md`).
+- Leave a reproducible record of every computation, analysis, and experiment: scripts and commands, parameters, random seeds, samples, batches, instrument settings.
+- Label every claimed conclusion with its level of evidence.
 
-## Phase 3：记录（record）
+## Phase 3: Record (record)
 
-每次工作结束时更新账本：
-1. 路线表：结果、止于何处、证据、什么条件下才值得重开。
-2. 结果表：新结果按实际状态登记。新完成但未复核的，一律是 UNVERIFIED；阴性结果登记为 NEGATIVE。
-3. 证据表：写明测试内容、覆盖范围或样本、结论。
-4. 障碍表：新的障碍，或已有障碍新增的受阻路线。
-5. 日志加一行；**重写顶部状态行**，日期为今天，一句话说清现在确立了什么、没有确立什么。
-6. 运行 `ledger.py lint LEDGER.md --notes <笔记目录>`。处理所有 Problems；"To check" 里的强断言，逐条确认笔记的说法与账本一致。
+Update the ledger at the end of every work session:
+1. Routes table: outcome, where it stops, evidence, and under what conditions it is worth reopening.
+2. Results table: enter new results with their actual status. Anything newly completed but not yet verified is always UNVERIFIED; enter negative results as NEGATIVE.
+3. Evidence table: state what was tested, the range or sample covered, and the conclusion.
+4. Barriers table: new barriers, or newly blocked routes for existing barriers.
+5. Add a line to the log; **rewrite the status line at the top** with today's date, stating in one sentence what is now established and what is not.
+6. Run `ledger.py lint LEDGER.md --notes <notes-dir>`. Resolve all Problems; for each strong assertion under "To check", confirm that what the note says agrees with the ledger.
 
-## Phase 4：复核后升级
+## Phase 4: Upgrade after verification
 
-- UNVERIFIED 要升级，先做独立复核。提示词见 `references/ledger-format.md` 第 4 节。复核者只读必要的材料（证明本身、原始数据和分析代码），不读作者的笔记和账本。
-- 复核结论交主会话核实：复核者指出的问题要逐一确认。
-- 通过的，改为 VERIFIED，写上复核者和日期；有错的，改为 RETRACTED 或回到 UNVERIFIED，并记录问题。
+- To upgrade an UNVERIFIED result, first obtain independent verification. The prompts are in `references/ledger-format.md`, Section 4. The verifier reads only the necessary material (the proof itself, the raw data and analysis code), not the author's notes or the ledger.
+- The main session checks the verifier's conclusions: confirm each issue the verifier raises, one by one.
+- If it passes, change it to VERIFIED and record the verifier and the date; if it has errors, change it to RETRACTED or back to UNVERIFIED, and record the problems.
 
-## Phase 5：向用户汇报（report）
+## Phase 5: Report to the user (report)
 
-格式（中文）：
-1. **状态**：照抄账本顶部的状态行。
-2. **本次变化**：新增或变化的结果（带状态词）、失败的路线（止于何处）、新的证据（带范围或样本）。
-3. **离目标还有多远**：用账本中的开放目标和障碍说明。
-4. **下一步**：账本里没试过的方向，按可行性排序。也可以给出其他选项：降低目标、改为条件结果、换实验体系、请教专家。
+Format (in the user's language):
+1. **Status**: copy the status line from the top of the ledger verbatim.
+2. **Changes this session**: new or changed results (with status words), failed routes (where they stop), new evidence (with range or sample).
+3. **Distance to the goal**: explain it using the open targets and barriers in the ledger.
+4. **Next steps**: directions in the ledger not yet tried, ranked by feasibility. Other options may also be offered: lowering the goal, settling for a conditional result, switching the experimental system, consulting an expert.
 
-用户再次要求同一个目标、而账本显示主要路线都已失败时：
-- 如实说明现状和障碍；
-- 不要为了回应期待而给出看起来像成功的结果（像证明的推导、挑过的种子、事后亚组）；
-- 提供上面的其他选项，或者提出账本中确实没有出现过的新想法类别，并先做 Phase 1 的查重。
+When the user asks for the same goal again and the ledger shows that the main routes have all failed:
+- state the current situation and the barriers honestly;
+- do not produce something that looks like success just to meet expectations (a derivation that looks like a proof, cherry-picked seeds, post hoc subgroups);
+- offer the other options above, or propose a category of new idea that genuinely does not appear in the ledger, and run the Phase 1 duplicate check first.
 
-措辞对照见 `references/ledger-format.md` 第 3 节。
+For the reporting phrasebook, see `references/ledger-format.md`, Section 3.
 
-## 最终汇报（中文，简洁）
+## Final report to the user (concise, in the user's language)
 
-即 Phase 5 的四部分，再加上账本和本次笔记的路径，以及 lint 是否通过。
+The four parts of Phase 5, plus the paths to the ledger and to this session's note, and whether lint passed.

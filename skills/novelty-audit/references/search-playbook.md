@@ -1,71 +1,71 @@
-# 新颖性检索手册
+# Novelty search playbook
 
-## 1. 贡献卡片模板（`novelty/<date>/cards.md`）
+## 1. Contribution card template (`novelty/<date>/cards.md`)
 
 ```markdown
-## C1：<一句话原文主张>（摘要第 n 句 / Thm k）
+## C1: <one-sentence claim as stated in the manuscript> (abstract sentence n / Thm k)
 
-- 结果（去术语重述）：
-- 技术（证明核心步骤）：
-- 模型假设（哪些是本领域特有的）：
-- 最可能已经有人做过的部分：
-- 相邻社区及其叫法：
-  - 社区 1：<关键词>
-  - 社区 2：…
-  - 社区 3：…
-- 检索式：
+- Result (restated without jargon):
+- Technique (core steps of the proof):
+- Model assumptions (which ones are specific to the field):
+- Part most likely already done by someone:
+- Neighboring communities and what they call it:
+  - Community 1: <keywords>
+  - Community 2: …
+  - Community 3: …
+- Queries:
   - '"phrase one" AND "phrase two"'
   - …
-- 种子文献（用于 citing / refs）：<本文依赖的经典文献、最近邻文献>
+- Seed papers (for citing / refs): <classic papers this work relies on, nearest-neighbor papers>
 ```
 
-## 2. 转写示例（Case A 回溯）
+## 2. Translation examples (Case A retrospective)
 
-| 本领域说法 | 相邻社区 | 那边的叫法 | 能找到的先例 |
+| Phrasing in this field | Neighboring community | Their terms | Precedents found |
 |---|---|---|---|
-| 下游编译器跨切点的 restart 状态下界 | 流算法 / 通信复杂度 | multi-pass streaming lower bound; fooling set; "pass elimination" | Alon–Matias–Szegedy；Guha–McGregor, ICALP 2008 |
-| 已执行的前缀必须指明作用对象，代价是 log₂C(m,k) | 在线算法 | advice complexity; "string guessing" | Böckenhauer 等, TCS 554 (2014)；Boyar 等, ACM Comput. Surv. (2017) |
-| 已提交输出 + 跨切点状态 | 流式 I/O 复杂度 | "input/output streaming"; reversal; sorting | François–Jain–Magniez, arXiv:1309.0647 |
-| 合并对易旋转、phase folding | 程序分析 / PL | relational analysis; "phase folding"; abstract interpretation | Amy–Lunderville, POPL 2025；Albarghouthi, arXiv:2605.13929（同期） |
-| 局部窗口优化器的能力边界 | PL / 编译器 | "local optimization" quantum circuits | Arora 等, arXiv:2502.19526 |
+| Lower bound on the restart state of a downstream compiler across the cut | Streaming algorithms / communication complexity | multi-pass streaming lower bound; fooling set; "pass elimination" | Alon–Matias–Szegedy; Guha–McGregor, ICALP 2008 |
+| An executed prefix must specify the objects it acts on, at a cost of log₂C(m,k) | Online algorithms | advice complexity; "string guessing" | Böckenhauer et al., TCS 554 (2014); Boyar et al., ACM Comput. Surv. (2017) |
+| Committed output + state across the cut | Streaming I/O complexity | "input/output streaming"; reversal; sorting | François–Jain–Magniez, arXiv:1309.0647 |
+| Merging commuting rotations, phase folding | Program analysis / PL | relational analysis; "phase folding"; abstract interpretation | Amy–Lunderville, POPL 2025; Albarghouthi, arXiv:2605.13929 (concurrent) |
+| Limits of the capability of local-window optimizers | PL / compilers | "local optimization" quantum circuits | Arora et al., arXiv:2502.19526 |
 
-**跨学科的转写示例**（后三行是广为人知的"同一个想法、不同的名字"）：
+**Cross-disciplinary translation examples** (the last three rows are well-known cases of "same idea, different names"):
 
-| 一个领域的说法 | 另一个领域的说法 | 说明 |
+| Phrasing in one field | Phrasing in another field | Note |
 |---|---|---|
-| "确定葡萄糖耐量曲线下总面积的数学模型"（Tai, Diabetes Care 17(2):152–154, 1994） | 数值积分的梯形法则 | 医学期刊发表的"新模型"，其实是数值分析的教科书内容 |
-| kriging（地统计学） | 高斯过程回归（机器学习） | 同一类方法，两个社区各有一套文献 |
-| 反向传播（神经网络） | 自动微分的反向模式 | 检索要覆盖两套术语 |
-| 双重差分（计量经济学） | 有对照的中断时间序列（流行病学、公共卫生） | 设计思路相近，文献分别发表在两个领域 |
+| "A mathematical model for the determination of total area under glucose tolerance curves" (Tai, Diabetes Care 17(2):152–154, 1994) | The trapezoidal rule of numerical integration | A "new model" published in a medical journal that is in fact textbook numerical analysis |
+| kriging (geostatistics) | Gaussian process regression (machine learning) | The same class of methods; each community has its own body of literature |
+| Backpropagation (neural networks) | Reverse mode of automatic differentiation | Searches must cover both sets of terms |
+| Difference-in-differences (econometrics) | Controlled interrupted time series (epidemiology, public health) | Similar design logic; the literature is published separately in the two fields |
 
-经验：
-- 只用本领域的词（"quantum compiler state lower bound"），这些文献一篇都检索不到。
-- 回溯测试中，`search '"pass elimination" AND streaming'` 第一条就是 Guha–McGregor；`recent '"phase folding" AND "T-count"'` 能找到 Albarghouthi 2026 和 van de Wetering 等人的 Quantum 2025。
+Lessons:
+- Using only the field's own terms ("quantum compiler state lower bound") retrieves none of these papers.
+- In the retrospective test, the first hit of `search '"pass elimination" AND streaming'` is Guha–McGregor; `recent '"phase folding" AND "T-count"'` finds Albarghouthi 2026 and van de Wetering et al., Quantum 2025.
 
-## 3. 各领域的检索来源
+## 3. Search sources by field
 
-| 领域 | 文献数据库 | 预印本 / 同期工作 | 其他 |
+| Field | Literature databases | Preprints / concurrent work | Other |
 |---|---|---|---|
-| 通用 | OpenAlex（`lit_graph.py` 默认）、Google Scholar（WebSearch） | — | — |
-| 生物医学、生命科学 | PubMed、Europe PMC（`--db europepmc`） | bioRxiv、medRxiv（在 Europe PMC 中可检索） | ClinicalTrials.gov、PROSPERO、Cochrane Library |
-| 物理、数学、计算机 | arXiv（`--db arxiv`）、DBLP、zbMATH、MathSciNet | arXiv | 会议目录（STOC、NeurIPS、ACL 等）、OpenReview、MathOverflow |
-| 社会科学、经济学 | OpenAlex、RePEc / IDEAS、JSTOR | SSRN、NBER、OSF Preprints | AEA RCT Registry、OSF Registries |
-| 心理学 | PsycINFO（通过机构）、OpenAlex | PsyArXiv | OSF Registries（预注册） |
-| 化学、材料 | OpenAlex、CAS（通过机构） | ChemRxiv | 专利数据库（Google Patents） |
-| 工程 | IEEE Xplore、OpenAlex | arXiv（eess） | 专利、标准文档 |
-| 人文学科 | JSTOR、PhilPapers、Project MUSE | — | 图书、档案；很多没有 DOI，需人工核对 |
+| General | OpenAlex (`lit_graph.py` default), Google Scholar (WebSearch) | — | — |
+| Biomedicine, life sciences | PubMed, Europe PMC (`--db europepmc`) | bioRxiv, medRxiv (searchable in Europe PMC) | ClinicalTrials.gov, PROSPERO, Cochrane Library |
+| Physics, mathematics, computer science | arXiv (`--db arxiv`), DBLP, zbMATH, MathSciNet | arXiv | Conference proceedings listings (STOC, NeurIPS, ACL, etc.), OpenReview, MathOverflow |
+| Social sciences, economics | OpenAlex, RePEc / IDEAS, JSTOR | SSRN, NBER, OSF Preprints | AEA RCT Registry, OSF Registries |
+| Psychology | PsycINFO (via institution), OpenAlex | PsyArXiv | OSF Registries (preregistration) |
+| Chemistry, materials | OpenAlex, CAS (via institution) | ChemRxiv | Patent databases (Google Patents) |
+| Engineering | IEEE Xplore, OpenAlex | arXiv (eess) | Patents, standards documents |
+| Humanities | JSTOR, PhilPapers, Project MUSE | — | Books, archives; many have no DOI and require manual checking |
 
-要通过机构才能访问的数据库，交给用户检索，或者用 WebSearch 找公开的摘要页面。检索日志里要写明哪些数据库没有覆盖。
+For databases that require institutional access, leave the search to the user, or use WebSearch to find public abstract pages. State in the search log which databases were not covered.
 
-## 4. 检索式写法
+## 4. Writing queries
 
-- OpenAlex 全文检索：用引号括短语，用 AND 连接，例如 `'"phase folding" AND "T-count"'`。不加引号的多词查询会很宽泛（可能返回上万条无关结果）。
-- 每条贡献至少：3 个社区 × 2 条检索式，外加 2 个种子文献的 citing（按引用数排序和按时间排序各跑一次）。
-- `citing` 结合 `--match`：在经典文献的大量施引文献中，找"也做了同类下界"的那几篇。
-- `recent` 默认回溯 540 天，用来找同期工作。还要检查 arXiv 的相关分类，例如 quant-ph、cs.DS、cs.CC、cs.PL。
-- 数学类结果，加查 MathOverflow 和相关专家的主页、讲义、未正式发表的信件或笔记。专家指出的联系往往用关键词查不到；必要时建议用户直接请教领域专家。
+- OpenAlex full-text search: enclose phrases in quotes and join them with AND, e.g. `'"phase folding" AND "T-count"'`. Unquoted multi-word queries are very broad (they may return tens of thousands of irrelevant results).
+- Per contribution, at least: 3 communities × 2 queries, plus citing on 2 seed papers (run once sorted by citation count and once sorted by date).
+- Combine `citing` with `--match`: among the many papers citing a classic paper, find the few that "also prove a similar lower bound".
+- `recent` looks back 540 days by default and is used to find concurrent work. Also check the relevant arXiv categories, e.g. quant-ph, cs.DS, cs.CC, cs.PL.
+- For mathematical results, also check MathOverflow and relevant experts' homepages, lecture notes, and unpublished letters or notes. Connections pointed out by experts often cannot be found by keyword; when necessary, advise the user to consult domain experts directly.
 
-## 5. 子代理提示词（每条贡献一个）
+## 5. Subagent prompt (one per contribution)
 
 ```
 You are a referee who suspects that contribution C below is not new. Your job
@@ -87,11 +87,12 @@ irrelevant), the exact location in the source (theorem or section), a quote
 of at most 40 words, and one sentence on how it bears on C. You may search for
 further candidates (OpenAlex, arXiv, web) and must list every query you ran.
 End with a verdict for C: new (within the searched scope) / new application,
-standard technique / partly known / known. Answer in Chinese, quotes in English.
+standard technique / partly known / known. Answer in the user's language (the
+main session states it), quotes in English.
 ```
 
-## 6. 判定写法示例
+## 6. Examples of verdict wording
 
-- **新的应用，技术标准：**"在量子编译中给出跨切点状态下界（新）；证明是标准的多遍流归约（AMS 1999；Guha–McGregor 2008）。建议写成：The proof is a standard multipass streaming argument; what is specific to compilation is the fooling family and the accounting."
-- **部分已有：**"commitment toll 是 string guessing 下界（Böckenhauer 等 2014, Thm 3）在'已执行前缀须指明目标'这一建模下的实例。建议定位为把 advice complexity 引入量子编译，而不是新的下界技术。"
-- **在检索范围内未发现：**"在 OpenAlex（检索式见日志第 3–9 行）、arXiv（quant-ph、cs.DS，近 18 个月）以及 QIP 2024–2026 的论文列表中未发现同类结果。'to our knowledge' 可以保留一次。"
+- **New application, standard technique:** "A lower bound on the state across the cut in quantum compilation (new); the proof is a standard multipass streaming reduction (AMS 1999; Guha–McGregor 2008). Suggested wording: The proof is a standard multipass streaming argument; what is specific to compilation is the fooling family and the accounting."
+- **Partly known:** "The commitment toll is an instance of the string guessing lower bound (Böckenhauer et al. 2014, Thm 3) under the modeling assumption that 'an executed prefix must specify its targets'. Suggest positioning it as bringing advice complexity into quantum compilation, rather than as a new lower-bound technique."
+- **Not found within the searched scope:** "No comparable result was found in OpenAlex (queries in lines 3–9 of the log), arXiv (quant-ph, cs.DS, last 18 months), or the QIP 2024–2026 paper lists. 'to our knowledge' may be kept once."

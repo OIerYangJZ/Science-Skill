@@ -1,32 +1,32 @@
 ---
 name: <kebab-case-name>
-description: <一两句话：做什么、什么时候用、什么时候不用。模型靠这段话决定是否自动调用，所以要写清触发场景。>
-argument-hint: "[参数说明]"
+description: <One or two sentences on what it does, when to use it, and when not to use it. The model relies on this text to decide whether to invoke the skill automatically, so state the trigger situations clearly.>
+argument-hint: "[argument description]"
 ---
 
-# <name>：<一句话目标>
+# <name>: <one-sentence goal>
 
-## 这个 skill 针对的问题
+## The problem this skill addresses
 
-<对应 FAILURE_MODES.md 的第几条；写出症状和一个真实证据。>
+<Which item of FAILURE_MODES.md it corresponds to; state the symptoms and one piece of observed evidence.>
 
-## 硬性规则
+## Hard rules
 
-1. 不覆盖用户的原件；产出写到 `<artifact-dir>/<YYYY-MM-DD>/`。
-2. <证据先于结论的具体要求>
-3. 模拟的判断一律标"推断"。
-4. 对话用中文；论文或代码按原语言。
+1. Do not overwrite the user's originals; write outputs to `<artifact-dir>/<YYYY-MM-DD>/`.
+2. <Specific requirements for putting evidence before conclusions>
+3. Label every simulated judgment "inferred".
+4. Talk to the user in their language; papers and code keep their original language.
 
-## 流程
+## Workflow
 
-### Phase 0：接收
-<需要确定什么；哪些可以推断，哪些必须问用户>
+### Phase 0: Intake
+<What needs to be determined; what can be inferred and what must be asked of the user>
 
 ### Phase 1 … N
-<每一步：输入、操作、产出文件、检查标准>
+<For each step: inputs, actions, output files, acceptance criteria>
 
-### 独立复核
-<用子代理或脚本复核；主会话核实子代理的结论>
+### Independent verification
+<Verify with a subagent or a script; the main session checks the subagent's conclusions>
 
-## 最终汇报
-<给用户的中文要点：结论、文件路径、需要确认的事项、做不到的部分>
+## Final report
+<Key points for the user, in the user's language: conclusions, file paths, items that need confirmation, parts that could not be done>

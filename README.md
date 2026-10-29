@@ -1,88 +1,171 @@
 # Science-Skill
 
-一组 Claude Code skill，用来对付 AI 辅助科研时反复出现的失效模式。每个 skill 都对应 [FAILURE_MODES.md](FAILURE_MODES.md) 里登记的一种问题，而且这种问题在真实项目中发生过。
+**English** | [简体中文](README.zh-CN.md)
 
-**适用范围：各学科通用。**
-- **稿件格式**：LaTeX、Word（.docx）、Markdown、纯文本、PDF（需安装 pdftotext）。
-- **参考文献**：BibTeX、RIS（Zotero / EndNote 导出），或者稿件末尾任意引用格式的参考文献列表。
-- **文献来源**：OpenAlex（全学科）、Crossref、DataCite、arXiv，以及 Europe PMC（PubMed、PMC 全文、bioRxiv / medRxiv）。
-- **研究体裁**：理论、实验、随机对照试验、观察性研究、计算或机器学习、定性研究、系统综述。证据等级、报告规范和措辞规则都按体裁区分。
-- **"写得好不好"的标准**：一律以目标期刊同体裁的范文统计为准，不预设任何学科的习惯。
+Claude Code skills that counter the recurring failure modes of AI-assisted research.
 
-skill 的起源案例来自作者的量子信息论文，它们只用来说明问题确实存在，不构成默认标准。目前只支持英文稿件。
+AI assistants help with research writing and checking, but they fail in predictable ways:
+- When asked to polish a manuscript, they hedge until the contribution disappears; when asked to make it stronger, they overclaim.
+- They let numbers drift away from the data.
+- They produce citations that do not exist.
+- They search for literature that confirms novelty instead of literature that challenges it.
+- They write mock reviews that echo the authors' own notes.
+- They report progress more optimistically than the evidence allows.
 
-## 现有 skill
+Each skill in this library targets one of these failure modes. A skill is a written procedure that Claude Code follows, backed by standard-library Python scripts that measure, trace, or verify, so that conclusions rest on evidence rather than on the model's tone. Every skill was written after the corresponding failure occurred in real projects ([FAILURE_MODES.md](FAILURE_MODES.md)).
 
-| skill | 解决什么 | 典型用法 |
+The skills are discipline-agnostic. They work on LaTeX, Word, Markdown, plain-text, and PDF manuscripts, and they distinguish theoretical, experimental, observational, computational, qualitative, and review studies.
+
+## Skills
+
+| Skill | Failure mode addressed | Main outputs |
 |---|---|---|
-| [paper-polish](skills/paper-polish/SKILL.md) | AI 润色导致防御性写作，编辑看不出新意；以及反方向的过度宣称（包括相关写成因果） | `/paper-polish manuscript.docx "The Lancet"` |
-| [number-audit](skills/number-audit/SKILL.md) | 统计量与 p 值对不上、百分比与 n 对不上、正文数字与数据或脚本脱节、工具约定读错、同一符号两套数值 | `/number-audit main.tex supplement.tex` |
-| [cite-verify](skills/cite-verify/SKILL.md) | 参考文献元数据错误或编造；引用并不支撑所在的句子 | `/cite-verify manuscript.docx` 或 `/cite-verify refs.bib --tex main.tex` |
-| [novelty-audit](skills/novelty-audit/SKILL.md) | 只找支持"我们是新的"的文献，漏掉审稿人会拿来对比的先例和标准技术 | `/novelty-audit main.tex` |
-| [mock-review](skills/mock-review/SKILL.md) | 模拟审稿不独立、不复核、行号漂移；报告规范（CONSORT、STROBE、PRISMA 等）没人查 | `/mock-review <稿件目录> BMJ --roles 临床,统计,报告规范` |
-| [dead-end-ledger](skills/dead-end-ledger/SKILL.md) | 长期攻关（证明、实验、模型）时的讨好式汇报，以及重走已失败的路线 | `/dead-end-ledger research/LEDGER.md before` |
+| [`paper-polish`](skills/paper-polish/SKILL.md) | Defensive writing that hides the novelty from editors, and the opposite swing to overclaiming | Survey of exemplar papers from the target journal; gap analysis; claim ledger; rewritten title, abstract and introduction; blind editor test |
+| [`number-audit`](skills/number-audit/SKILL.md) | Numbers that drift from data and code; misread tool conventions; statistics that do not add up | Number inventory; consistency leads; trace of each key number to its source; statcheck-style checks of p-values, percentages and CIs; audit report |
+| [`cite-verify`](skills/cite-verify/SKILL.md) | Wrong or fabricated bibliographic metadata; citations that do not support the sentence they are attached to | Per-entry verification against Crossref, DataCite, arXiv and Europe PMC; proposed corrected entries; list of citation contexts for claim checking |
+| [`novelty-audit`](skills/novelty-audit/SKILL.md) | Searching only for literature that confirms novelty | Contributions restated in neighboring communities' terms; forward, backward, keyword and concurrent-work searches; per-contribution novelty verdict with a search log |
+| [`mock-review`](skills/mock-review/SKILL.md) | Mock reviews that are not independent, not verified, or tied to a moving manuscript | Isolated, version-pinned review pack; independent reviewer reports; cross-discussion; main-session verification; prioritized joint report |
+| [`dead-end-ledger`](skills/dead-end-ledger/SKILL.md) | Sycophantic progress reports, and repeated attempts at routes that already failed | Research ledger with graded results, routes, barriers and a dated status line; duplicate check before each new attempt; lint |
 
-投稿前的推荐顺序：先做 `novelty-audit`（新意的定位决定怎么写），再依次做 `paper-polish`、`number-audit` 和 `cite-verify`，最后用 `mock-review` 总检。`dead-end-ledger` 用在研究过程中，不在投稿流程里。
+A typical pre-submission sequence is `novelty-audit` → `paper-polish` → `number-audit` → `cite-verify` → `mock-review`. `dead-end-ledger` is meant for the research phase itself.
 
-候选（还没写）：venue-fit，见 [FAILURE_MODES.md](FAILURE_MODES.md)。
+## Design principles
 
-## 安装
+1. **Evidence before wording.** Claim strength follows evidence strength. A theorem is stated as proved; an observational association is not stated as a cause; a single run is not stated as a general result.
+2. **Norms come from exemplars.** What counts as good writing is measured on recent papers of the same type in the target journal, not taken from any one field's habits. Uncertainty language that a field requires (associational wording, confidence intervals, limitations sections) is kept. Defensive hedging around the contribution itself is removed.
+3. **Originals are never overwritten.** All outputs go to a dated working directory. When the manuscript lives in a git repository, that directory is excluded from git.
+4. **Independent checking.** Subagents that review, analyze exemplars, or verify proofs do not see the authors' notes. The main session verifies their claims before anything is acted on.
+5. **Simulated judgments are labeled as such.** A "not found" result is always reported with what was searched, where, and when.
+6. **Presentation and substance are kept apart.** Problems that rewriting cannot fix are reported as such.
+7. **Language.** The skills talk to the user in the user's language. Manuscript text stays in the manuscript's language.
 
-```bash
-cd ~/Desktop/Science-Skill
-./install.sh            # 把 skills/* 软链接到 ~/.claude/skills/，新开会话后可用 /<name> 调用
-./install.sh uninstall  # 只移除本脚本创建的软链接
-```
+## Installation
 
-软链接指向本目录，所以在这里修改会直接生效（需新开会话）。新增 skill 后，重新运行一次 `./install.sh`。各 skill 的脚本依赖仓库根目录的 `lib/`，所以不要单独把某个 skill 目录复制到别处使用。
-
-另一种方式是把整个仓库当作插件加载，例如 `claude --plugin-dir ~/Desktop/Science-Skill`，此时调用名带命名空间，如 `/science-skill:paper-polish`。两种方式选一种，不要同时用。
-
-## 目录
-
-```
-skills/<name>/SKILL.md        流程（中文）
-skills/<name>/references/     细则、模板、案例
-skills/<name>/scripts/        可单独运行的检查脚本（各自有 --help）
-lib/                          共用模块：LaTeX 解析、学术 API、BibTeX（见 lib/README.md）
-templates/SKILL_TEMPLATE.md   新 skill 模板
-FAILURE_MODES.md              失效模式目录 = 路线图
-```
-
-## 脚本速查
+Requirements:
+- [Claude Code](https://claude.com/claude-code).
+- Python 3.10 or later. The scripts use the standard library only and are tested on Python 3.14.
+- Optional: `pdftotext` (poppler), for PDF manuscripts.
+- Network access to the public scholarly APIs listed under [Data sources and privacy](#data-sources-and-privacy).
 
 ```bash
-S=~/Desktop/Science-Skill/skills
-python3    $S/paper-polish/scripts/hedge_scan.py manuscript.docx           # 摘要和引言的指标 + 防御性/过冲/因果措辞（.tex/.docx/.md/.pdf）
-python3    $S/number-audit/scripts/number_audit.py stats manuscript.docx --out number_audit/today   # 统计量与 p 值、k/n%、OR/HR 置信区间
-python3 -I $S/cite-verify/scripts/refcheck.py check-list manuscript.docx --out refcheck/today        # 任意格式的文末参考文献
-python3 -I $S/novelty-audit/scripts/lit_graph.py search '"gut microbiome" AND "social network"' --db europepmc
-python3 -I $S/paper-polish/scripts/exemplar_meta.py search '"T-count" AND "lower bound"' --venue "PRX Quantum" --from 2021
-python3    $S/number-audit/scripts/number_audit.py extract main.tex supplement.tex --out number_audit/today
-python3    $S/number-audit/scripts/number_audit.py trace number_audit/today/numbers.json --repo . --regions abstract,introduction,caption,table
-python3 -I $S/cite-verify/scripts/refcheck.py check references.bib --tex main.tex --out refcheck/today
-python3 -I $S/novelty-audit/scripts/lit_graph.py search '"pass elimination" AND streaming' --log novelty/today/search_log.md
-python3    $S/mock-review/scripts/review_pack.py pack --repo . --out ~/mock_review/paper-today --roles math,application
-python3    $S/dead-end-ledger/scripts/ledger.py search LEDGER.md "new idea" --notes research/
+git clone https://github.com/OIerYangJZ/Science-Skill.git
+cd Science-Skill
+./install.sh            # symlinks skills/* into ~/.claude/skills/
+./install.sh uninstall  # removes only the links created by install.sh
 ```
 
-联网的脚本只访问 OpenAlex、Crossref、DataCite、arXiv 和 Europe PMC 的公开接口，不会发送任何个人信息。OpenAlex 在没有 API key 时，同一网络下的所有人共用一个很小的每日额度，大量检索前建议申请免费 key，并设置 `OPENALEX_API_KEY`。arXiv 请求过于频繁会返回 429；脚本会退避重试，仍然失败时，本次运行就跳过 arXiv，并给出提示。
+Start a new Claude Code session afterwards; each skill is then available as `/<skill-name>`. The symlinks point to the cloned repository, so edits and `git pull` take effect in the next session.
 
-## 所有 skill 共用的设计原则
+Alternatively, load the repository as a plugin for a single session with `claude --plugin-dir /path/to/Science-Skill`. The skills are then namespaced, for example `/science-skill:paper-polish`. Use one method or the other, not both.
 
-1. **证据先于措辞。** 结论的强度由证据决定，不由语气决定。
-2. **不覆盖原件。** 产出放在独立的工作目录里；在 git 仓库中，工作目录会加入 `.git/info/exclude`。
-3. **独立复核。** 子代理不读作者的笔记；子代理给出的结论，由主会话核实后才采用。
-4. **模拟的判断标"推断"。** 检索不到的东西，只说"在某某范围内未发现"。
-5. **表述问题和实质问题分开说。** 靠重写解决不了的，如实告诉用户。
-6. 对话用中文；论文和代码保持原语言。
+The scripts depend on the shared `lib/` directory, so do not copy a single skill directory elsewhere.
 
-## 新增 skill
+## Usage
 
-1. 先在 `FAILURE_MODES.md` 登记症状和真实证据。
-2. 复制 `templates/SKILL_TEMPLATE.md` 到 `skills/<name>/SKILL.md`，按需加 `references/` 和 `scripts/`。脚本按现有写法通过 `realpath` 引用 `lib/`。
-3. 运行 `./install.sh`，新开一个会话测试。
+Invoke a skill in Claude Code with a manuscript and, where relevant, a target journal:
 
-## 注意
+```text
+/paper-polish manuscript.docx "The Lancet"
+/paper-polish main.tex "Physical Review Letters" --mode survey
+/number-audit main.tex supplement.tex
+/cite-verify manuscript.docx
+/cite-verify references.bib --tex main.tex
+/novelty-audit main.tex
+/mock-review ./paper "BMJ" --roles clinical,statistics,reporting
+/dead-end-ledger research/LEDGER.md before
+```
 
-各 skill 引用的案例（Case A、Case B）都已脱敏：不含期刊名、投稿经过或审稿细节，只保留写作规律和改法。范文列表中的论文都是公开发表的文献。
+Each skill defines its phases, the points where it stops for the user's decision, and what it reports at the end. For example, `paper-polish` produces:
+
+```text
+polish/2026-10-29/
+  scan_before.md / .json        metrics and flagged phrasing in the editor-facing sections
+  claim_ledger.md               each claim, its evidence, and the wording that evidence allows
+  exemplars/*.md, *.intro.*     verified exemplar papers: metadata, abstract, introduction, analysis card
+  exemplar_stats.md             the same metrics computed on the exemplars
+  survey_report.md              comparison of research question, writing, narrative, abstract and introduction
+  abstract_intro.tex            rewritten abstract and introduction (optional: titles, Fig. 1 caption, cover letter)
+  polish_notes.md               structural comparison, number provenance, changes the authors must confirm
+  blind/                        blind editor test, overclaim review, and their verification
+```
+
+## Command-line tools
+
+Each script can also be run on its own; use `--help` for details.
+
+| Script | Purpose |
+|---|---|
+| `paper-polish/scripts/hedge_scan.py` | Measures title, abstract, introduction, conclusion and captions; flags defensive phrasing, overclaiming, causal wording and unsupported "significant" |
+| `paper-polish/scripts/exemplar_meta.py` | Finds candidate exemplars (OpenAlex, by journal and year); verifies metadata; fetches abstracts and introductions (arXiv source or PMC open-access XML) |
+| `number-audit/scripts/number_audit.py` | `extract`: number inventory and consistency leads. `trace`: locate each number in data and code. `stats`: recompute p-values from t, F, χ², r and z; check k/n percentages and ratio confidence intervals |
+| `cite-verify/scripts/refcheck.py` | `check`: BibTeX or RIS against Crossref, DataCite, arXiv and Europe PMC. `check-list`: free-text reference lists in any citation style. `contexts`: the sentences in which each reference is cited |
+| `novelty-audit/scripts/lit_graph.py` | Keyword, forward-citation, backward-citation and concurrent-work searches across OpenAlex, arXiv and Europe PMC, with a search log |
+| `mock-review/scripts/review_pack.py` | Builds an isolated, SHA-256-pinned copy of a manuscript directory without the authors' notes; later checks whether review line numbers still apply |
+| `dead-end-ledger/scripts/ledger.py` | Creates, searches (TF-IDF over routes and notes), lints, and summarizes a research ledger |
+
+```bash
+S=skills
+python3    $S/paper-polish/scripts/hedge_scan.py manuscript.docx
+python3    $S/number-audit/scripts/number_audit.py stats manuscript.docx --out audit/
+python3 -I $S/cite-verify/scripts/refcheck.py check-list manuscript.docx --out refcheck/
+python3 -I $S/novelty-audit/scripts/lit_graph.py search '"pass elimination" AND streaming' --log search_log.md
+```
+
+Run the scripts that read downloaded content with `python3 -I`.
+
+## Supported inputs
+
+| Input | Formats |
+|---|---|
+| Manuscripts | `.tex` (following `\input` / `\include`), `.docx`, `.md`, `.txt`, `.pdf` (via `pdftotext`) |
+| Section detection | LaTeX sectioning; IMRaD headings; numbered and all-caps headings; unheaded introductions (Nature style); structured abstracts |
+| References | BibTeX; RIS (Zotero, EndNote, Mendeley export); free-text reference lists in any citation style; LaTeX `thebibliography` |
+| Citation contexts | `\cite` keys; numeric `[n]` citations; author–year citations |
+| Statistics | Inline APA-style reports such as `t(23) = 2.45, p = .02`, `F(2, 45) = 3.21, p < .05`, `χ2(1) = 3.84, p = .05`, `r(46) = .32, p = .03`, `z = 1.96, p = .05`; `k of n (x%)`; OR / RR / HR with 95% CI |
+
+## Data sources and privacy
+
+The scripts query only public metadata services: [OpenAlex](https://openalex.org), [Crossref](https://www.crossref.org), [DataCite](https://datacite.org), [arXiv](https://arxiv.org), and [Europe PMC](https://europepmc.org) (PubMed, PMC full text, bioRxiv, medRxiv). No personal information is sent.
+
+Two optional environment variables:
+- `OPENALEX_API_KEY`: without a key, all users on the same IP address share a small daily OpenAlex budget. A free key is recommended for heavy use.
+- `SCIENCE_SKILL_MAILTO`: an e-mail address for the Crossref and OpenAlex polite pools. It is never set automatically.
+
+Other behavior:
+- arXiv requests are rate-limited. If arXiv still answers HTTP 429 after retries, the scripts skip arXiv for the rest of that run and say so.
+- arXiv LaTeX sources are parsed in memory; nothing from them is written to disk or executed.
+- Verbatim quotes and measurements are taken only from API text or source files, never from model-summarized web pages.
+
+## Limitations
+
+- Only English-language manuscripts are supported; the phrase lists and sentence splitting are English-specific.
+- Superscript citation numbers in Word documents are lost in text conversion and must be checked by hand.
+- The statistics checker recognizes inline APA-style reports only. Statistics in tables need a manual check.
+- Subscription databases (Web of Science, Scopus, PsycINFO) are not queried; the skills hand such searches to the user. Many humanities sources are not indexed in any of the services above.
+- Pattern scans and traces produce leads, not verdicts. The skills require each lead to be read in context.
+- Mock reviews and editor simulations are performed by the same family of models. They test whether a contribution can be found and whether claims are supported; they do not predict editorial decisions.
+
+## Repository layout
+
+```text
+skills/<name>/SKILL.md         procedure followed by Claude Code
+skills/<name>/references/      detailed rules, templates and examples
+skills/<name>/scripts/         standalone checking scripts
+lib/                           shared modules: document reading, scholarly APIs, BibTeX/RIS, statistics
+templates/SKILL_TEMPLATE.md    template for new skills
+FAILURE_MODES.md               catalog of observed failure modes; the library's roadmap
+install.sh                     installs the skills as symlinks
+.claude-plugin/plugin.json     plugin manifest
+```
+
+## Extending the library
+
+1. Record the failure mode and the observed evidence in [FAILURE_MODES.md](FAILURE_MODES.md). A new skill should address a failure that has actually occurred.
+2. Copy [templates/SKILL_TEMPLATE.md](templates/SKILL_TEMPLATE.md) to `skills/<name>/SKILL.md`, and add `references/` and `scripts/` as needed. Scripts locate `lib/` through `os.path.realpath(__file__)`.
+3. Run `./install.sh` and test in a new session.
+
+Case studies from other disciplines are welcome. The current evidence comes from theoretical physics manuscripts and has been anonymized.
+
+## License
+
+No license has been chosen yet.

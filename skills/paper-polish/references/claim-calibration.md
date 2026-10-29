@@ -1,105 +1,105 @@
-# Claim ledger 与主张强度校准
+# Claim ledger and calibration of claim strength
 
-防御性写作和过冲是同一个问题的两面：措辞的强度与证据的强度不匹配。ledger 把每条主张钉到证据上，再由证据决定用什么动词、加什么限定。下面的规则适用于各学科；第 2 节按研究体裁给出证据等级。
+Defensive writing and overclaiming are two sides of the same problem: the strength of the wording does not match the strength of the evidence. The ledger pins each claim to its evidence, and the evidence then determines which verb to use and which qualifiers to add. The rules below apply across disciplines; Section 2 gives evidence levels by research genre.
 
-## 1. Ledger 格式
+## 1. Ledger format
 
-保存为 `polish/<date>/claim_ledger.md`。范围是摘要、引言、结论和 cover letter 里的每一条主张：凡是"本文发现、证明、测量或主张了什么"的句子，都算一条。
+Save as `polish/<date>/claim_ledger.md`. The scope is every claim in the abstract, introduction, conclusion, and cover letter: any sentence stating what this paper found, proved, measured, or claims counts as one claim.
 
-| ID | 主张（原文，位置） | 证据类型 | 前提或条件 | 正文出处 | 当前强度 | 应有措辞 | 备注 |
+| ID | Claim (verbatim, location) | Evidence type | Premises or conditions | Source in main text | Current strength | Target wording | Notes |
 |---|---|---|---|---|---|---|---|
-| C1 | "Any compiler that … obeys …"（摘要第 5 句） | T1 | 网格输入；对每条合法流都正确 | Thm 1, `main.tex:962` | 恰当 | "we prove that any such compiler must …" | |
-| C2 | "orders of magnitude more $T$ states"（摘要第 16 句） | C2 | 单一的、已说明的 QRE 模型；只用一个基准 | Sec. 8, `qre_results.csv` | 偏强（基线没点名） | "385–1,753× vs Qiskit opt3 … TKET avoids the gap" | 这个数不是由定理推出的 |
-| C3 | "Social contact causes microbiome convergence"（摘要结论句） | O1 | 观察性研究，一个种群 | Table 2, Fig. 3 | 偏强（因果措辞） | "Social contact was associated with microbiome similarity, independent of diet" | 示意 |
+| C1 | "Any compiler that … obeys …" (abstract, sentence 5) | T1 | Grid inputs; correct on every valid stream | Thm 1, `main.tex:962` | Calibrated | "we prove that any such compiler must …" | |
+| C2 | "orders of magnitude more $T$ states" (abstract, sentence 16) | C2 | A single, disclosed QRE model; only one benchmark | Sec. 8, `qre_results.csv` | Overstated (baseline not named) | "385–1,753× vs Qiskit opt3 … TKET avoids the gap" | This number does not follow from the theorem |
+| C3 | "Social contact causes microbiome convergence" (abstract, concluding sentence) | O1 | Observational study, one population | Table 2, Fig. 3 | Overstated (causal wording) | "Social contact was associated with microbiome similarity, independent of diet" | Illustrative |
 
-"当前强度"取三个值之一：**偏弱**（防御）、**恰当**、**偏强**（过冲）。
+"Current strength" takes one of three values: **understated** (defensive), **calibrated**, **overstated** (overclaiming).
 
-## 2. 证据等级与对应措辞（按研究体裁）
+## 2. Evidence levels and corresponding wording (by research genre)
 
-所有体裁共用一条原则：**证据有多强，措辞就用多强，条件写在结论旁边，只写一次。**
+One principle applies to all genres: **make the wording as strong as the evidence, no more and no less; state conditions next to the conclusion, and only once.**
 
-### 理论 / 数学
+### Theory / mathematics
 
-| 等级 | 证据 | 措辞 | 限定 |
+| Level | Evidence | Wording | Qualifiers |
 |---|---|---|---|
-| T1 | 文中有完整证明的定理 | "we prove"、"X requires Y"、"any … must …"（一般现在时） | 不加情态词；条件写进主语或从句 |
-| T2 | 依赖外部未证假设或猜想的证明 | "we prove … assuming H"、"Under H, …" | 假设紧挨着结论；摘要里不能省 |
-| T3 | 构造或上界 | "we construct"、"… attains … within a constant factor" | 写明模型和参数范围 |
-| T4 | 启发式论证或猜想 | "we conjecture"、"heuristically" | 给出支持它的证据 |
+| T1 | Theorem with a complete proof in the paper | "we prove", "X requires Y", "any … must …" (simple present tense) | No modal verbs; build conditions into the subject or a clause |
+| T2 | Proof that relies on an external unproven assumption or conjecture | "we prove … assuming H", "Under H, …" | Place the assumption right next to the conclusion; it must not be omitted from the abstract |
+| T3 | Construction or upper bound | "we construct", "… attains … within a constant factor" | State the model and the parameter range |
+| T4 | Heuristic argument or conjecture | "we conjecture", "heuristically" | Give the evidence that supports it |
 
-### 实验（实验室实验、随机对照试验）
+### Experiments (laboratory experiments, randomized controlled trials)
 
-| 等级 | 证据 | 措辞 | 限定 |
+| Level | Evidence | Wording | Qualifiers |
 |---|---|---|---|
-| X1 | 预注册的随机对照试验或有对照的实验，已重复 | "X reduced / increased Y by …"（可以用因果措辞） | 效应量 + 置信区间；样本和人群 |
-| X2 | 单次的对照实验 | "in our experiments, X reduced Y …" | 条件、样本量；说明尚未重复 |
-| X3 | 预实验、探索性分析、事后亚组分析 | "in an exploratory analysis …"、"pilot data indicate …" | 明确标注为探索性的；不进摘要头条 |
+| X1 | Preregistered randomized controlled trial or controlled experiment, replicated | "X reduced / increased Y by …" (causal wording permitted) | Effect size + confidence interval; sample and population |
+| X2 | Single controlled experiment | "in our experiments, X reduced Y …" | Conditions, sample size; state that it has not yet been replicated |
+| X3 | Pilot experiment, exploratory analysis, post hoc subgroup analysis | "in an exploratory analysis …", "pilot data indicate …" | Label explicitly as exploratory; keep out of the abstract headline |
 
-### 观察性研究（队列、病例对照、横断面、调查、生态学研究）
+### Observational studies (cohort, case-control, cross-sectional, survey, ecological studies)
 
-| 等级 | 证据 | 措辞 | 限定 |
+| Level | Evidence | Wording | Qualifiers |
 |---|---|---|---|
-| O1 | 关联分析，已调整混杂 | "X was associated with Y (OR …, 95% CI …)" | **不用** causes、leads to、effect of、drives、results in |
-| O2 | 带因果识别策略（工具变量、断点回归、双重差分、孟德尔随机化等） | "consistent with a causal effect of X on Y under [assumption]" | 识别假设写在结论旁边 |
-| O3 | 描述性分析 | "X was more common among …" | 不解释成机制 |
+| O1 | Association analysis, adjusted for confounding | "X was associated with Y (OR …, 95% CI …)" | **Do not use** causes, leads to, effect of, drives, results in |
+| O2 | With a causal identification strategy (instrumental variables, regression discontinuity, difference-in-differences, Mendelian randomization, etc.) | "consistent with a causal effect of X on Y under [assumption]" | State the identifying assumptions next to the conclusion |
+| O3 | Descriptive analysis | "X was more common among …" | Do not interpret as a mechanism |
 
-### 计算 / 模拟 / 机器学习
+### Computation / simulation / machine learning
 
-| 等级 | 证据 | 措辞 | 限定 |
+| Level | Evidence | Wording | Qualifiers |
 |---|---|---|---|
-| C1 | 穷举或经认证的计算，范围有限 | "exhaustive enumeration up to N shows" | 必须写出范围 |
-| C2 | 基准测试或模拟 | "on [benchmarks / settings], X outperforms Y by …" | 数据集、种子数、方差，比较对象要调到最好 |
-| C3 | 单个数据集或单次运行 | "on [dataset], we observe …" | 不外推到 "in general" |
+| C1 | Exhaustive or certified computation over a limited range | "exhaustive enumeration up to N shows" | The range must be stated |
+| C2 | Benchmarks or simulations | "on [benchmarks / settings], X outperforms Y by …" | Datasets, number of seeds, variance; comparators must be tuned to their best |
+| C3 | Single dataset or single run | "on [dataset], we observe …" | Do not extrapolate to "in general" |
 
-### 定性研究
+### Qualitative studies
 
-| 等级 | 证据 | 措辞 | 限定 |
+| Level | Evidence | Wording | Qualifiers |
 |---|---|---|---|
-| Q1 | 主题分析，达到饱和，多人编码 | "participants described …"、"we identified three themes …" | 说明情境、样本和可迁移性，不说"普遍" |
+| Q1 | Thematic analysis, saturation reached, multiple coders | "participants described …", "we identified three themes …" | State the context, sample, and transferability; do not claim universality |
 
-### 综述与元分析
+### Reviews and meta-analyses
 
-| 等级 | 证据 | 措辞 | 限定 |
+| Level | Evidence | Wording | Qualifiers |
 |---|---|---|---|
-| R1 | 按 PRISMA 做的系统综述或元分析 | "pooled estimate …"、"the evidence indicates …" | 写明证据质量（如 GRADE）和异质性 |
+| R1 | Systematic review or meta-analysis conducted according to PRISMA | "pooled estimate …", "the evidence indicates …" | State the quality of evidence (e.g., GRADE) and the heterogeneity |
 
-### 解读与含义（所有体裁）
+### Interpretation and implications (all genres)
 
-只有能从结果推出时才写 "this means / implies"；推不出时，写成 "a possible consequence would be"，或者不写。
+Write "this means / implies" only when it follows from the results; when it does not, write "a possible consequence would be", or leave it out.
 
-## 3. 规则
+## 3. Rules
 
-1. **不升级。**
-   - 数值、单次实验、观察性证据不能用 prove、establish、demonstrate that … causes。
-   - 非有效的渐近结果，不能当成实际参数下的数字来写。
-2. **不降级。** 已经证明的结论、预注册试验的主要终点，不能写成 "suggests"、"may"、"we attempt to show"。
-3. **条件只写一次，紧挨着结论**，不要在后文以免责句的形式重复。
-4. **下面这些词必须有对应的证据：**
-   - law、universal、fundamental、optimal、tight：需要定理正好这样说；
-   - first、for the first time、novel：需要池 B 或 novelty-audit 的检索支持，且全文最多出现一次；
-   - orders of magnitude、dramatically、substantially：需要点名的、不是稻草人的比较对象；
-   - significant(ly)：只能用在统计意义上，并且要报告检验；非统计意义请改用 substantial、marked 等；
-   - causes、leads to、effect of、drives：需要实验设计或因果识别策略支持。
-5. **主语与证据对象一致。**
-   - 定理讲的是"模型 M 中的过程"，摘要就不能写成 "compilers"。
-   - 研究对象是"某地区的成年人"，摘要就不能写成 "people"。
-6. **头条数字只有一个**，比较对象写在同一句里。实证研究带上置信区间或其他不确定性。
-7. **结果在实际条件下不成立或没有意义时**（例如非有效的界，或者统计显著但效应量很小），摘要和引言要说清楚在实际条件下什么成立。做不到的，就不要让它当头条。
-8. **技术或方法来源**：用的是标准论证或已有方法时，在引言里直接承认，并说明新在哪里。
-9. **领域规范要求的限定要保留。** 观察性研究的关联措辞、预实验的标注、置信区间、报告规范要求的局限性段落，都不是防御。要去掉的，是围绕"本文贡献"本身的免责和稀释（见 `defensive-patterns.md`）。
+1. **Do not upgrade.**
+   - Numerical, single-experiment, or observational evidence must not use prove, establish, or demonstrate that … causes.
+   - Do not present a non-effective asymptotic result as if it were a number at practical parameters.
+2. **Do not downgrade.** Proven conclusions and the primary endpoints of preregistered trials must not be written as "suggests", "may", or "we attempt to show".
+3. **State conditions only once, right next to the conclusion**; do not repeat them later as disclaimers.
+4. **The following words require matching evidence:**
+   - law, universal, fundamental, optimal, tight: require a theorem that says exactly this;
+   - first, for the first time, novel: require support from a Pool B or novelty-audit search, and may appear at most once in the whole paper;
+   - orders of magnitude, dramatically, substantially: require a named comparator that is not a straw man;
+   - significant(ly): use only in the statistical sense, and report the test; for the non-statistical sense, use substantial, marked, etc. instead;
+   - causes, leads to, effect of, drives: require support from an experimental design or a causal identification strategy.
+5. **Match the subject to the object of the evidence.**
+   - If the theorem is about "processes in model M", the abstract must not say "compilers".
+   - If the study population is "adults in a given region", the abstract must not say "people".
+6. **Use only one headline number**, with the comparator in the same sentence. For empirical studies, include a confidence interval or another measure of uncertainty.
+7. **When a result does not hold or is not meaningful under practical conditions** (e.g., a non-effective bound, or a statistically significant result with a very small effect size), the abstract and introduction must state clearly what does hold under practical conditions. If that cannot be done, do not make it the headline.
+8. **Origin of the technique or method**: when you use a standard argument or an existing method, acknowledge it directly in the introduction and state what is new.
+9. **Keep qualifiers required by field norms.** Associational wording in observational studies, labels on pilot experiments, confidence intervals, and limitations paragraphs required by reporting guidelines are not defensive. What should be removed are disclaimers and dilution surrounding "this paper's contribution" itself (see `defensive-patterns.md`).
 
-## 4. 范围句的写法
+## 4. Writing the scope sentence
 
-- **防御式**："[Result]. This does not hold for Z, and we make no claim about W. Note that our model assumes V."
-- **校准式**：
-  - 理论："For [class defined by V], we prove [result]." 然后在引言末尾写一个范围段，最后落到一个设计原则或开放问题上。
-  - 实证："In [population / setting], X was associated with Y (…). [Design] does not establish causality; [the specific next study] would." 局限只写一次，落到下一步研究上。
+- **Defensive:** "[Result]. This does not hold for Z, and we make no claim about W. Note that our model assumes V."
+- **Calibrated:**
+  - Theory: "For [class defined by V], we prove [result]." Then write one scope paragraph at the end of the introduction, ending on a design principle or an open question.
+  - Empirical: "In [population / setting], X was associated with Y (…). [Design] does not establish causality; [the specific next study] would." State the limitations only once, and end on the next study.
 
-## 5. 每轮重写后的核对清单
+## 5. Checklist after each rewrite round
 
-- [ ] 摘要里的每一句都能对应到 ledger 的某个 ID，或者是背景句。
-- [ ] 每条依赖假设的主张（T2、O2），假设都写在它旁边。
-- [ ] 没有一条数值、观察性或探索性主张用了 prove、establish 或因果动词。
-- [ ] 每个 O、OC、OS 类词（`hedge_scan.py` 标出的）都有对应的证据。
-- [ ] 每个数字都在 `polish_notes.md` 的出处表里，并且重新核对过；统计量已用 `number-audit stats` 检查过。
-- [ ] 新稿没有加入原稿中不存在的结论。
+- [ ] Every sentence in the abstract maps to a ledger ID or is a background sentence.
+- [ ] For every claim that depends on an assumption (T2, O2), the assumption is stated next to it.
+- [ ] No numerical, observational, or exploratory claim uses prove, establish, or a causal verb.
+- [ ] Every O, OC, or OS word (flagged by `hedge_scan.py`) has matching evidence.
+- [ ] Every number is in the source table of `polish_notes.md` and has been rechecked; statistics have been checked with `number-audit stats`.
+- [ ] The new draft adds no conclusion that is absent from the original.

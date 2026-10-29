@@ -1,85 +1,85 @@
-# 案例：本 skill 的经验来源
+# Cases: where this skill's lessons come from
 
-两个案例都是作者本人的理论稿件（量子信息方向）。这里只保留与写作有关的规律和改法，期刊名、投稿经过和审稿细节都已删去。
+Both cases are the author's own theoretical manuscripts (quantum information). Only the patterns and fixes that concern writing are kept here; journal names, submission history, and review details have been removed.
 
-**适用范围：** 这两个案例只说明两种模式：
-- 防御性写作导致新意被埋没；
-- 过度宣称被审稿人抓住。
+**Scope:** These two cases illustrate only two patterns:
+- defensive writing buries the novelty;
+- overclaiming gets caught by reviewers.
 
-表中的具体数字（摘要 1 段、109–300 词、符号不超过 3 个等）是物理期刊的分布，不能套用到其他领域；其他领域的分布要用 paper-polish 的范文统计重新得出。欢迎补充其他学科的案例：写明体裁、问题和改法即可。
+The specific numbers in the table (1-paragraph abstract, 109–300 words, no more than 3 symbols, etc.) are distributions from physics journals and must not be applied to other fields; derive the distributions for other fields afresh from paper-polish's exemplar statistics. Cases from other disciplines are welcome: just state the genre, the problem, and the fix.
 
 ---
 
-## Case A：一篇理论稿，两次被编辑以"表述不清"拒稿
+## Case A: A theory manuscript rejected twice by editors for "unclear presentation"
 
-**事实**
-- 两次投稿都停在编辑层面，没有外审读过这篇稿子。
-- 编辑给出的具体理由只有一个：表述不清（lack of clarity in presentation）。
+**Facts**
+- Both submissions stopped at the editorial level; no external referee read the manuscript.
+- The only specific reason the editors gave was unclear presentation (lack of clarity in presentation).
 
-**调研方法**
-- 并行运行几路调研：先行工作审计，以及对目标期刊和同档期刊 26 篇同体裁文章的结构拆解（分 4 组）。
-- 之后人工逐条核对原稿和数据。
-- 作者自己整理的文献调研文件里，查出 8 处元数据错误：卷号、作者、机构，其中一篇的机构和实验平台整个写错了。
+**Survey method**
+- Several survey streams ran in parallel: a prior-work audit, and a structural dissection of 26 same-genre articles from the target journal and journals of the same tier (in 4 groups).
+- Afterward, the original manuscript and the data were checked manually, item by item.
+- The author's own literature survey file turned out to contain 8 metadata errors: volume numbers, authors, affiliations; for one paper, the affiliation and the experimental platform were entirely wrong.
 
-**测量结果**
+**Measurements**
 
-| 项目 | 原稿 | 26 篇范文 | 重写稿 |
+| Item | Original | 26 exemplars | Rewrite |
 |---|---|---|---|
-| 摘要段数 | 4 | 全部 1 段 | 1 |
-| 摘要词数 | 497 | 109–300（理论类中位数 161） | 约 230 |
-| 摘要句数 | 20 | 5–12 | 7 |
-| 主结果首次出现 | 第 7 句，以约 8 个符号的不等式给出 | 第 2–4 句，最晚第 6 句 | 第 3 句，用文字给出 |
-| 行内公式 | 19 | 通常 0–3 | 7 |
-| 范围限定 | 6 处以上，另有 3 句整句 | 1–3 处，附在结果句里 | 1 处，附在结果句里 |
-| 头条数字的基线 | "orders of magnitude"，基线没有点名 | 最多一个，基线写在同一句里 | 给出倍数范围，点名基线（一个主流工具的最高优化档），并承认另一工具能避开这个差距 |
-| 引言第一句 | "A fault-tolerant compiler is not only a translator" | 领域难题或现实动机 | "Two routine steps … split rotation angles on purpose." |
-| 引言中主结果的位置 | 贡献清单第 2 条 | 第 1–6 段 | 第 4 段：显示公式，再逐个符号用文字解释 |
-| 贡献清单 | 6 条带项目符号的长段 | 26 篇中仅 2 篇用项目符号 | 取消，改为散文 |
-| 版本史段落 | 有 | 0 篇 | 删除，移到预印本的版本说明里 |
-| does / does not / no claim 类句子 | 约 12 处 | 1 句或 0 | 1 个范围段，以设计原则收尾 |
-| 图 1 图注 | 一整段，提前引用 5 个尚未定义的结果 | 只描述图中内容 | 精简 |
-| 技术来源 | 只在 Related Work 里提到 | — | 引言里直接说明是标准的多遍流论证，并说清新的部分在哪 |
+| Abstract paragraphs | 4 | All 1 paragraph | 1 |
+| Abstract words | 497 | 109–300 (theory median 161) | About 230 |
+| Abstract sentences | 20 | 5–12 | 7 |
+| First appearance of main result | Sentence 7, as an inequality with about 8 symbols | Sentences 2–4, sentence 6 at the latest | Sentence 3, in words |
+| Inline formulas | 19 | Typically 0–3 | 7 |
+| Scope qualifiers | 6+ places, plus 3 whole sentences | 1–3, attached to the result sentence | 1, attached to the result sentence |
+| Baseline of the headline number | "orders of magnitude", baseline not named | At most one, baseline stated in the same sentence | Gives a range of factors, names the baseline (the highest optimization level of a mainstream tool), and acknowledges that another tool avoids this gap |
+| First sentence of introduction | "A fault-tolerant compiler is not only a translator" | A hard problem in the field or a real-world motivation | "Two routine steps … split rotation angles on purpose." |
+| Position of main result in introduction | Item 2 of the contribution list | Paragraphs 1–6 | Paragraph 4: a displayed formula, then each symbol explained in words |
+| Contribution list | 6 long bulleted paragraphs | Only 2 of 26 use bullets | Removed, replaced by prose |
+| Version-history paragraph | Present | 0 papers | Deleted, moved to the preprint's version notes |
+| does / does not / no claim sentences | About 12 | 1 sentence or 0 | 1 scope paragraph, ending with a design principle |
+| Fig. 1 caption | A full paragraph, citing 5 results not yet defined | Describes only what the figure shows | Condensed |
+| Source of the technique | Mentioned only in Related Work | — | The introduction states directly that it is a standard multi-pass streaming argument, and says clearly where the new part lies |
 
-**经验**
-1. **"表述不清"多半是结构问题，不是语法问题。** 主结果在哪里出现、贡献是否分了主次、范围讨论占多大篇幅，这些比措辞更关键。
-2. **防御性写作会制造稻草人的印象。** 原稿没有点名的基线，实际就是一个主流工具的默认最高优化档。点名之后，审稿人反而更难说它是稻草人。
-3. **主动承认技术来源。** 新颖性审计发现，主定理用的是相邻领域的标准论证，原稿也漏引了该领域的关键文献（如 Guha–McGregor）。与其等审稿人指出，不如在引言里直接说清新的部分在哪里。
-4. **数值小的结果，要讲清它约束的是谁。** 原稿举的例子是"约 31 字节"，读起来像结果无关紧要；重写稿说明了它约束的是哪一类系统。
-5. **表述问题和实质问题要分开。** 调研的优先级表里有一列"需要新结果"，例如更强、更贴近应用的下界。这一列靠重写解决不了。
-6. **同一符号前后的取值要一致。** 引言的算例和主定理用了两种定义，同一个量前后相差约 4 倍；编辑在第 2 页就会注意到。
+**Lessons**
+1. **"Unclear presentation" is mostly a structural problem, not a grammatical one.** Where the main result appears, whether the contributions are prioritized, how much space the scope discussion takes: these matter more than wording.
+2. **Defensive writing creates the impression of a strawman.** The unnamed baseline in the original was in fact the default highest optimization level of a mainstream tool. Once it was named, it became harder for reviewers to call it a strawman.
+3. **Acknowledge the source of the technique proactively.** The novelty audit found that the main theorem used a standard argument from an adjacent field, and that the original also omitted key references from that field (e.g., Guha–McGregor). Rather than wait for reviewers to point this out, state clearly in the introduction where the new part lies.
+4. **For a result with small numbers, explain whom it constrains.** The original's example was "about 31 bytes", which reads as if the result does not matter; the rewrite explained which class of systems it constrains.
+5. **Separate presentation problems from substantive problems.** The survey's priority table had a "new results needed" column, e.g., stronger, more application-relevant lower bounds. Rewriting cannot resolve this column.
+6. **The same symbol must keep the same value throughout.** The worked example in the introduction and the main theorem used two different definitions, so the same quantity differed by a factor of about 4; an editor will notice this on page 2.
 
-**被验证有效的范文模板**（均为已发表的公开文献）
-- Tan, PRX Quantum 7, 033058：结果 → 此前最好的结果 → 尚未解决的问题。
-- Koczor 等, PRL 132, 130602：先讲利害，再给出用比特表示的指标；把代价放进让步从句（"While PAI increases that sampling cost, we prove…"）。
-- Low 等, PRX Quantum 4, 020323：引言开头就给结果，并用一个下界说明为什么需要那些假设。
-- Caesura 等, PRX Quantum 6, 030337：头条数字和基线写在同一句（"2 orders of magnitude over prior art"），确切倍数在引言的表里拆解。
+**Exemplar templates validated as effective** (all published, publicly available literature)
+- Tan, PRX Quantum 7, 033058: result → previous best result → open problem.
+- Koczor et al., PRL 132, 130602: the stakes first, then the metric expressed in bits; the cost goes in a concessive clause ("While PAI increases that sampling cost, we prove…").
+- Low et al., PRX Quantum 4, 020323: gives the result at the very start of the introduction, and uses a lower bound to explain why those assumptions are needed.
+- Caesura et al., PRX Quantum 6, 030337: headline number and baseline in the same sentence ("2 orders of magnitude over prior art"), with the exact factors broken down in a table in the introduction.
 
 ---
 
-## Case B：一篇理论稿的模拟审稿，同时指出防御和过冲
+## Case B: A mock review of a theory manuscript that flagged both defensiveness and overclaiming
 
-**事实**
-- 一个独立的子代理按目标期刊的外审标准写了一份模拟审稿报告。它事先没有读作者的笔记和修订计划。
-- 报告同时指出了两类问题。
+**Facts**
+- An independent subagent wrote a mock review report according to the target journal's external review standards. It had not read the author's notes or revision plan beforehand.
+- The report identified both kinds of problems.
 
-**防御一侧**（转述）
-- 段落由长句组成，句句挂着限定和"不是……而是……"。
-- 摘要先给渐近结果，具有实际意义的数字放到了最后。
-- 图注过长；同一个符号有两种含义；引言依赖没有解释的专门概念。
-- 读者很难提炼出应该记住的核心信息。
+**Defensive side** (paraphrased)
+- Paragraphs consist of long sentences, each hung with qualifiers and "not … but …" constructions.
+- The abstract gives the asymptotic result first and puts the practically meaningful number at the end.
+- Captions are too long; the same symbol has two meanings; the introduction relies on specialized concepts that are not explained.
+- Readers find it hard to extract the core message they should remember.
 
-**过冲一侧**（转述）
-- 标题和摘要里的名词（如 "law"）比实际证明的内容更强。
-- 依赖未证假设的结论，在摘要里写得像已经成立。
-- 在实际参数下没有意义的渐近结果，放在了摘要开头。
-- 另有一处外部工具的参数约定用错，属于事实性错误（这类问题见 number-audit）。
+**Overclaiming side** (paraphrased)
+- Nouns in the title and abstract (e.g., "law") are stronger than what is actually proved.
+- Conclusions that depend on unproven assumptions are written in the abstract as if already established.
+- Asymptotic results that are meaningless at practical parameters are placed at the start of the abstract.
+- In addition, the parameter convention of an external tool was used incorrectly, which is a factual error (for this type of problem, see number-audit).
 
-**作者后来的处理**
-- 每个头条结论都对应到一个定理及其条件；条件始终紧挨着结论。
-- 考虑把篇幅很长的数学证明拆成另一篇论文，让主稿聚焦核心贡献。
-- cover letter 从约 500 词压到约 350 词，顺序改为：核心问题 → 实质新意 → 期刊适配性 → 与相关稿件的区别。方法、数值和限定条件的比例降低，细节留给正文。
+**What the author did afterward**
+- Mapped every headline conclusion to a theorem and its conditions; the conditions always stay right next to the conclusion.
+- Considered splitting the very long mathematical proofs into a separate paper, so that the main manuscript focuses on the core contribution.
+- Cut the cover letter from about 500 words to about 350 and reordered it as: core problem → substantive novelty → journal fit → distinction from related manuscripts. Reduced the share of methods, numbers, and qualifying conditions, leaving the details to the body.
 
-**经验**
-1. **去掉防御和避免过冲必须同时做。** 所以本 skill 用 claim ledger，而不是简单地删限定词。
-2. **模拟审稿要独立，主会话要复核。** 模拟审稿声称的几处错误，主会话逐项复算：多数完全成立，有一项只是实质成立，具体参数需要更正。
-3. **篇幅分配本身就是叙事。** 长篇技术细节会冲淡编辑对核心贡献的印象。
+**Lessons**
+1. **Removing defensiveness and avoiding overclaiming must be done together.** That is why this skill uses a claim ledger rather than simply deleting qualifiers.
+2. **The mock review must be independent, and the main session must re-check it.** The main session recomputed each of the errors the mock review claimed: most were fully valid; one was valid only in substance, and its specific parameters needed correcting.
+3. **The allocation of space is itself part of the narrative.** Long technical detail dilutes the editor's impression of the core contribution.
