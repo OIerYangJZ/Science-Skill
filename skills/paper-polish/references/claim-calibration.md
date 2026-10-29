@@ -87,6 +87,13 @@ Write "this means / implies" only when it follows from the results; when it does
 7. **When a result does not hold or is not meaningful under practical conditions** (e.g., a non-effective bound, or a statistically significant result with a very small effect size), the abstract and introduction must state clearly what does hold under practical conditions. If that cannot be done, do not make it the headline.
 8. **Origin of the technique or method**: when you use a standard argument or an existing method, acknowledge it directly in the introduction and state what is new.
 9. **Keep qualifiers required by field norms.** Associational wording in observational studies, labels on pilot experiments, confidence intervals, and limitations paragraphs required by reporting guidelines are not defensive. What should be removed are disclaimers and dilution surrounding "this paper's contribution" itself (see `defensive-patterns.md`).
+10. **Calibration is not selective reporting.** Removing defensive wording changes how a result is stated, never which results are stated. Do not drop or bury:
+    - failed conditions, negative results, subgroups or datasets where the effect does not hold;
+    - the primary outcome or metric that was planned, in favor of one that looks better;
+    - the number of analyses, configurations or runs tried, when it matters for the claim;
+    - limitations a reviewer needs to judge the claim, even if they are moved to the scope paragraph or narrowed to where they were observed (D16).
+
+    Moving a limitation, stating it once, and stating it precisely are allowed. Making it disappear is not. When a rewrite removes a sentence that carried evidence against the claim, list it under "Deliberately changed statements (author to confirm)".
 
 ## 4. Writing the scope sentence
 

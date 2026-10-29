@@ -1,6 +1,6 @@
 ---
 name: experiment-integrity
-description: Check that the code, data pipeline and measurement procedure behind a paper or report actually do what the text says, and that the experiment design itself is not producing the result. Covers claimed-vs-implemented design (pairing, seeds, sample sizes, splits, exclusions, search budgets), random-stream desynchronization, sentinel and fallback values leaking into results, discretization artifacts, small samples hiding failures, instrumentation and order effects, leakage and multiple testing, misleading figures, and gaps in the project's own automated checks. Any discipline with code or measurements (simulation, modeling, ML, lab and field data, software measurement studies, backtests). Use before submission, after all automated checks pass, when a result looks surprisingly large or clean, or when asked to red-team a finished analysis. Not for checking prose numbers against data (number-audit) or for literature novelty (novelty-audit).
+description: Check that the code, data pipeline and measurement procedure behind a paper or report actually do what the text says, and that the experiment design itself is not producing the result. Covers claimed-vs-implemented design (pairing, seeds, sample sizes, splits, exclusions, search budgets), random-stream desynchronization, sentinel and fallback values leaking into results, discretization artifacts, small samples hiding failures, instrumentation and order effects, leakage and multiple testing, circular ground truth and self-normalized scores, metrics described but never computed, placeholder data, unvalidated LLM judges, selective reporting, misleading figures, and gaps in the project's own automated checks. Any discipline with code or measurements. Use before submission, after all automated checks pass, when a result looks surprisingly large or clean, or when asked to red-team a finished analysis. Not for checking prose numbers against data (number-audit) or for literature novelty (novelty-audit).
 argument-hint: "[manuscript or report] [code/data directory] [--rounds 1|2]"
 ---
 
@@ -29,6 +29,8 @@ The observed cases behind this skill:
 
 1. **Do not change the user's code or data in place.** Work in a scratch copy, a new branch, or a git worktree. Propose fixes as patches. Write outputs to `integrity/<YYYY-MM-DD>/`; inside a git repository, add `integrity/` to `.git/info/exclude` and tell the user.
 2. **Leads are not findings.** A scan hit, a suspicious line or an odd number becomes a finding only after it is confirmed by reading the code path, by a targeted rerun, or by an instrumented check. Report confirmed findings, refuted leads and unchecked leads separately.
+   - **A critical finding names the innocent explanations it ruled out.** Before calling something critical (it would change a conclusion), list the plausible innocent explanations and how each was excluded. Examples: different seeds were an intended independent replication documented elsewhere; the "unused" metric is computed in another repository; the placeholder branch is unreachable in the reported configuration. If one cannot be excluded, the finding is "possible", not "confirmed".
+   - **State what could be observed.** Each finding carries its observability tier: **T** (text only: an inconsistency in the manuscript), **S** (source code read, not run), or **R** (code and data rerun). A T-tier finding can say that the paper is inconsistent, not what the code does.
 3. **Quantify the impact.** For each confirmed finding, rerun the affected analysis in the scratch copy and report how the published numbers and conclusions change. "No change" is a result too.
 4. **Expensive reruns need the user's go-ahead.** Estimate the runtime and cost from a small sample (including the slow tail) and ask before running anything long or paid. Hand long jobs over with an ETA instead of polling.
 5. **Every confirmed problem gets a guard.** Add an assertion, test or check so that a rerun cannot silently reintroduce it (Phase 6). Fix every call site, not only the one that was noticed.
@@ -72,6 +74,8 @@ The scan lists leads by code; each lead must be read in context.
 | L1 | Preprocessing fitted before the train/test split |
 | G1 | Check script testing numbers by substring |
 | G2 | Shell matching pitfalls (`grep -c … \|\| echo 0`, paths without end delimiters) |
+| X1 | Placeholder or synthetic data on a result path (random values assigned to results, `dummy` / `placeholder` strings, `TODO` markers outside tests) |
+| X2 | Metric-like function (accuracy, F1, AUC, error, ...) defined but never referenced |
 
 Python gets an AST-based scan; R, Julia, MATLAB and shell get a lighter regex scan. Languages and patterns not covered are checked by reading, following `references/checklist.md`.
 
@@ -94,6 +98,7 @@ Work through `references/checklist.md`. The checks that most often change conclu
 - **Measurement validity.** Compare runs with and without instrumentation. Use a fresh state per round, or randomize the order. Match identifiers with exact delimiters. For any surprisingly large or counterintuitive effect, design a control round that changes only the suspected confound before concluding.
 - **Statistics.** Count every analysis or configuration tried (the garden of forking paths); hold out data or correct for multiplicity; cluster standard errors for correlated units; split by time or group where needed; no information from test data may reach training or selection.
 - **Figures.** Use axis ranges that match the claim (include zero, or show the baseline when the claim is "flat" or "small"). Read numbers in titles and annotations from result files.
+- **Evaluation validity.** Ground truth independent of the method under test; no normalization by the method's own statistics; every described metric actually computed; no placeholder data; LLM or human judges validated; nothing run-but-dropped without a stated reason; ablations that change one thing at a time (checklist section 10).
 
 ## Phase 5: Impact
 
@@ -112,7 +117,7 @@ Also check the guards themselves: boundary-delimited matching, decimal rounding 
 ## Phase 7: Report
 
 Write `integrity/<date>/report.md` in the user's language, conclusions first:
-1. **Confirmed findings**, ordered by impact on conclusions: the claim, what the code does, the evidence, before/after numbers, the fix (patch path), and the guard added.
+1. **Confirmed findings**, ordered by impact on conclusions: the claim, what the code does, the evidence, the observability tier (T / S / R), the innocent explanations ruled out, before/after numbers, the fix (patch path), and the guard added. Findings that stayed "possible" are listed separately with what would settle them.
 2. **Design-ledger summary**: how many claims matched, mismatched, or could not be verified.
 3. **Refuted leads**: briefly, so that they are not re-investigated.
 4. **Not checked**, with reasons (e.g. needs a long or paid rerun the user has not approved).

@@ -109,6 +109,26 @@ PATTERNS: dict[str, tuple[str, list[str]]] = {
         r"\bnot (?:only|merely|just|simply) (?:a|an|the)\b",
         r"\bis not (?:a|an|the)\b[^.;:]{1,80}?\bbut\b",
     ]),
+    "D15": ("work-report narrative (chronology instead of argument)", [
+        r"\bwe (?:first|then|next|subsequently|later|finally) (?:tried|attempted|ran|performed|conducted|implemented|"
+        r"tested|explored|checked|considered|looked at|collected|built|trained|repeated)\b",
+        r"(?:^|[.;]\s+)(?:Next|Then|After that|Afterwards|Subsequently),? we\b",
+        r"\bwe (?:performed|conducted|carried out|ran|did) (?:a (?:series|set|number) of |several |some |many |extensive |"
+        r"various |multiple )?(?:experiments|simulations|tests|analyses|evaluations|benchmarks)\b(?! (?:to|that|which|showing|testing))",
+    ]),
+    "D16": ("local weakness stated as global", [
+        # Intransitive uses only: "may not generalize." is flagged; "may not generalize to unseen sites" names
+        # the condition, and "does not hold randomness" is a different verb sense.
+        r"\b(?:may|might|could|does|do|did|will) not (?:generali[sz]e|scale)\b(?! (?:to|for|when|beyond|if|in|on|across|"
+        r"with|past|the|a|an|this|these|its|our|their) )",
+        r"\b(?:may|might|could) not (?:transfer|extend|apply|hold|work)\b(?! (?:to|for|when|beyond|if|in|on|across|"
+        r"with|under|outside|the|a|an|this|these|its|our|their) )",
+        r"\bin (?:some|certain) (?:cases|settings|scenarios|situations|instances)\b",
+        r"\b(?:our|the|this|the proposed) (?:method|approach|framework|model|analysis|study|technique|algorithm)s? "
+        r"(?:is|are|remains?|has been) (?:still |somewhat |inherently )?limited\b(?! (?:to|by) )",
+        r"\b(?:has|have) (?:some|several|certain|inherent) limitations\b",
+        r"\bnot (?:always|universally|generally) (?:applicable|reliable|effective|accurate)\b",
+    ]),
     "O": ("overclaim flag (check ledger)", [
         r"\bfor the first time\b",
         r"\bthe first (?:\w+ )?(?:demonstration|proof|result|framework|method|study|work|example|evidence|bound|algorithm)\b",

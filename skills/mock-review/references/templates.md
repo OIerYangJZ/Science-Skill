@@ -111,3 +111,75 @@ Pick 2–4 roles by paper type. Fetch reporting guideline checklists verbatim fr
 | Computational simulation / numerical methods | Domain expert; numerical methods and error; reproducibility | — |
 
 In the reviewing subagent's responsibility statement, write "Check item by item against the <guideline> checklist (attached below), and flag missing items and where in the manuscript they should appear".
+
+## 6. Quick mode: kill memo and defense
+
+### 6.1 Attacker prompt (fresh subagent)
+
+```
+You are the most demanding referee <journal> could choose for this paper, expert
+in <direction>. Your task is to find the strongest reasons to reject it.
+
+Materials (read-only): <pack path>, version pinned in <PIN.json>.
+Journal criteria (verbatim): <criteria.txt>
+Read only inside <pack path>. Do not open any other directory.
+
+Write a rejection memo of at most 200 words to <reports/kill_memo.md> in <language>:
+- At most 3 kill arguments (K1, K2, K3), strongest first. A kill argument is a reason
+  that, if true, would make an editor reject the paper even after revision: the
+  main claim does not follow, is already known, is wrong, is untestable, or does
+  not matter for this venue.
+- Each argument: one sentence of claim, the location (file:line, theorem, figure,
+  table), and the evidence. Name the prior work if the argument is "already known".
+- No style, wording or minor issues. No softening. If you cannot find a real kill
+  argument, say so; do not invent one.
+
+After the memo, list the files you read and any numbers you recomputed.
+```
+
+### 6.2 Defender prompt (another fresh subagent)
+
+```
+You are a co-author defending this paper against a referee's rejection memo. You
+were not involved in writing it, and you may use only the paper itself.
+
+Materials (read-only): <pack path>, version pinned in <PIN.json>.
+Rejection memo: <reports/kill_memo.md>
+Read only inside <pack path> and the memo. Do not open any other directory.
+
+For each kill argument, write to <reports/defense.md> in <language>:
+- Verdict: REBUTTED (the paper already answers it: quote the passage and give its
+  location), FIXABLE (true, but a stated change to the text or a stated additional
+  analysis would answer it), or STANDS (true, and not fixable within this paper).
+- Evidence for the verdict. "The authors would argue" is not evidence; quote the
+  paper or recompute.
+- For FIXABLE: the minimal change, and whether it needs new results.
+Concede when the argument is right. A wrong rebuttal is worse than a concession.
+```
+
+### 6.3 Quick report (`quick_report.md`)
+
+```markdown
+> AI mock review, quick mode. Not the decision of real reviewers or the journal.
+> Pinned version: <hash>. Line numbers apply only to this version.
+
+| # | Kill argument (short) | Defense | Main-session check | Status | Next step |
+|---|---|---|---|---|---|
+| K1 | ... | REBUTTED, quote at file:line | read file:line, the passage answers it | rebutted | make the passage visible in the introduction |
+| K2 | ... | FIXABLE: add baseline X | recomputed; gap is real | stands until fixed | run X (needs new results) |
+| K3 | ... | STANDS | prior work Y, Theorem 2, already proves it | confirmed | reposition; see novelty-audit |
+
+Innocent explanations ruled out (for every confirmed kill argument): ...
+Suggested follow-up: full review with roles <...> / novelty-audit / proof-audit / none.
+```
+
+A rebutted argument is still a signal. If a referee could raise it after reading the paper, the answer is not visible enough; the fix is often a sentence in the abstract or introduction.
+
+## 7. Cross-model reviewer (optional)
+
+Reviewers from the same model family share blind spots. If the user has another model available locally (a different assistant CLI, or a model the user runs), one reviewer role can be run there with the same pack and the same prompt (Section 1 or 6.1), and its report goes into `reports/` like the others.
+
+Rules:
+- **Sending an unpublished manuscript to another provider shares it with that provider.** Ask the user before doing so, every time, and name the provider. Never do it for a manuscript under embargo or confidentiality terms.
+- The cross-model report is verified by the main session like any other (Phase 5). Disagreement between model families is reported as it is, not resolved by majority.
+- Record the model name and version in the report header.

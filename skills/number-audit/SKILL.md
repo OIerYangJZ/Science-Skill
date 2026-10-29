@@ -1,6 +1,6 @@
 ---
 name: number-audit
-description: Audit every number in a paper before submission or preprint posting (any discipline; the manuscript can be LaTeX, Word, Markdown, or PDF). Recompute whether test statistics and p values agree, whether k/n matches percentages, and whether confidence intervals of ratio measures are internally consistent; inventory all numbers in the text; check whether the same symbol keeps the same value throughout and whether hand-copied numbers have drifted from data macros; trace key numbers in the abstract, introduction, tables, and figure captions to the data or script that produced them, and recompute them in a scratch copy; check parameter conventions of external tools against the tool's source code (e.g., the definition of an error norm); check whether figures and tables still use parameters the text has ruled out; then install guards that recompute key numbers from their sources on every build so they cannot drift again. Use when the user asks to check numbers, reproduce values, or verify that data and text agree, or before finalizing, submitting, or responding to reviewers. Not for checking mathematical proofs themselves.
+description: Audit every number in a paper in any discipline (LaTeX, Word, Markdown or PDF). Recompute p values from test statistics, k/n percentages, ratio-measure confidence intervals, GRIM (means and percentages possible for integer data of the stated n), SD bounds on bounded scales, and stated changes against their endpoints; inventory all numbers and flag symbols with conflicting values and hand-copied numbers that drifted from data macros; trace key numbers in the abstract, introduction, tables and captions to the data or script that produced them and recompute them in a scratch copy; check external tools' conventions against their source code; check that figures and tables do not use parameters the text has ruled out; then install guards that recompute key numbers from their sources on every build. Use when asked to check numbers, reproduce values, or verify that data and text agree, or before finalizing, submitting or responding to reviewers. Not for checking proofs (proof-audit).
 argument-hint: "[manuscript .tex/.docx/.md/.pdf ...] [--repo data and code directory] [--scope key|all]"
 ---
 
@@ -60,13 +60,18 @@ In addition, check manually:
 ## Phase 2b: Statistical consistency (mandatory for empirical papers)
 
 ```
-python3 <skill-dir>/scripts/number_audit.py stats main.docx [supplement.docx] --out number_audit/<date>
+python3 <skill-dir>/scripts/number_audit.py stats main.docx [supplement.docx] --out number_audit/<date> \
+    [--bounds 1,7] [--items 4]
 ```
 
-The script runs three kinds of checks (similar to statcheck):
-- recompute p values from the reported test statistic and degrees of freedom for t, F, χ², r, and z, allowing for rounding of both;
-- check "k of n (x%)" against the percentage;
-- check whether point estimates of OR, RR, and HR fall inside their confidence intervals, and whether the intervals are roughly symmetric on the log scale.
+The script runs these checks:
+- **statcheck-style recomputation.** It recomputes p values from the reported test statistic and degrees of freedom for t, F, χ², r and z, allowing for rounding of both.
+- **k of n.** It checks "k of n (x%)" against the percentage.
+- **Ratio measures.** It checks whether point estimates of OR, RR and HR fall inside their confidence intervals, and whether the intervals are roughly symmetric on the log scale.
+- **GRIM.** It flags a mean, for example "M = 3.48, n = 15", or a percentage, for example "33.3% (n = 28)", that no set of integer scores of that size can produce at the reported precision. This matters when the data are integers: counts, single Likert items, or the sum of `--items` items.
+- **Bhatia–Davis bound.** It flags a standard deviation larger than any distribution on a bounded scale allows. Percentages and [0, 1] metrics are detected automatically; give `--bounds lo,hi` for other scales.
+- **Change arithmetic.** It checks sentences of the form "from A to B, a C% / C-fold / C-point change" against A and B.
+- **Overlap.** It flags comparisons ("outperforms", "higher than") claimed while the two ± intervals overlap. This is a lead to report a test or an effect size with its uncertainty, not proof of non-significance.
 
 Results are classified as:
 - GROSS: the significance decision is flipped; must be investigated;
@@ -79,7 +84,12 @@ The script recognizes only APA-style inline reports in the text, such as `t(23) 
 - whether sample sizes agree across the abstract, methods, Table 1, and the flow diagram;
 - whether the group sizes sum to the total;
 - whether the same result has the same value in the abstract, main text, and tables;
-- whether means and standard deviations are plausible (e.g., within the scale range).
+- whether means and standard deviations are plausible (e.g., within the scale range);
+- whether a headline number exceeds what its own table reports, or reports the best run as if it were the mean;
+- whether denominators drift (the same percentage computed over different populations in different places);
+- whether units and metric directions are consistent (lower-is-better versus higher-is-better);
+- whether captions describe what their tables and figures actually contain;
+- whether the appendix contradicts the main text.
 
 ## Phase 3: Trace
 

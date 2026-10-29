@@ -11,13 +11,13 @@ Goal: <precise goal statement>
 Current best: <result> (<status>, <evidence>)
 
 ## 1. Results
-| ID | Result (exact statement or pointer) | Status | Evidence | Reviewed / verified (by, date) |
+| ID | Result (exact statement or pointer) | Status | Depends on | Evidence | Reviewed / verified (by, date) |
 
 ## 2. Data and numerical evidence
 | ID | Test / experiment / analysis | Range or sample covered | Result | Evidence |
 
 ## 3. Open targets (ranked)
-| ID | Target statement | Would give | Why hard / barrier |
+| ID | Target statement | Would give | Depends on | Why hard / barrier |
 
 ## 4. Routes tried
 | ID | Date | Route (one line) | Outcome | Stops at (barrier or step) | Evidence | Reopen only if |
@@ -25,9 +25,24 @@ Current best: <result> (<status>, <evidence>)
 ## 5. Barriers
 | Barrier | What it says | Routes that hit it |
 
-## 6. Log
+## 6. Stop rules
+- Budget: …
+- Stop or pivot when: …
+- Review date: YYYY-MM-DD
+
+## 7. Log
 - YYYY-MM-DD: ...
 ```
+
+**Dependencies, example:**
+
+| ID | Result | Status | Depends on |
+|---|---|---|---|
+| R1 | Lemma A | VERIFIED | |
+| R2 | Main bound | CONDITIONAL(T1) | R1, T1 |
+| T1 | Conjecture H (open target) | OPEN | |
+
+If R1 were later retracted, `ledger.py graph` and `lint` flag R2 for re-checking. If R2 were marked VERIFIED while T1 is still open, they flag that too.
 
 **Migrating from a HANDOFF-style handoff document:**
 

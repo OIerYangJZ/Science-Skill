@@ -16,7 +16,12 @@ Subcommands
   stats MAIN [MAIN ...] --out DIR [--alpha 0.05]
       statcheck-style recomputation: p from reported t / F / chi2 / r / z and
       degrees of freedom (allowing for rounding), k/n (x%) percentages, and
-      OR/RR/HR confidence intervals. Works on .tex, .docx, .md, .txt, .pdf.
+      OR/RR/HR confidence intervals; GRIM (means and percentages impossible
+      for integer data of size n; --items for multi-item scales); the
+      Bhatia-Davis bound on SDs of bounded metrics (% and [0,1] detected,
+      --bounds lo,hi otherwise); "from A to B, a C% / C-fold / C-point change"
+      arithmetic; and comparisons claimed while +/- intervals overlap.
+      Works on .tex, .docx, .md, .txt, .pdf.
 
   guard-init DIR/numbers.json --out guards.json [--regions ...]
   guard-check guards.json [--manuscript FILE ...] [--strict]
@@ -596,7 +601,8 @@ def _consistent(rel: str, pr: float, hp: float, lo: float, hi: float) -> bool:
     return hi > pr - (1e-12 if rel == "≥" else 0)
 
 
-def stats_check(main: str, alpha: float = 0.05) -> list[dict]:
+def stats_check(main: str, alpha: float = 0.05, bounds: tuple[float, float] | None = None,
+                items: int = 1) -> list[dict]:
     src, kind = load_document(main)
     text = src.text
     if kind == "tex":
@@ -646,6 +652,7 @@ def stats_check(main: str, alpha: float = 0.05) -> list[dict]:
         rows.append({"loc": f"{fl}:{ln}", "test": "k/n %", "reported": m.group(0), "computed_p": None,
                      "computed_range": [round(exp, 3)], "status": "ok" if ok else "INCONSISTENT",
                      "note": f"{k}/{n} = {exp:.2f}%"})
+    rows += extra_checks(t, src, bounds, items)
     for m in RATIO_RX.finditer(t):
         pt, lo, hi = float(m.group("pt")), float(m.group("lo")), float(m.group("hi"))
         fl, ln = src.loc(t.count("\n", 0, m.start()))
@@ -661,6 +668,143 @@ def stats_check(main: str, alpha: float = 0.05) -> list[dict]:
                 issues.append(f"asymmetric on the log scale (geometric mid of CI {mid:.2f}); check")
         rows.append({"loc": f"{fl}:{ln}", "test": m.group("m") + " CI", "reported": m.group(0), "computed_p": None,
                      "computed_range": [], "status": "ok" if not issues else "CHECK", "note": "; ".join(issues)})
+    return rows
+
+
+# --- granularity, bounds and arithmetic checks -------------------------------
+def _hu(v: float, d: int) -> Decimal:
+    return Decimal(str(v)).quantize(Decimal(1).scaleb(-d), rounding=ROUND_HALF_UP)
+
+
+def grim_mean_ok(m_str: str, n: int, items: int = 1) -> bool | None:
+    """Can a mean of n integer scores (each the sum of `items` integer items) round to m_str?"""
+    d = _decimals(m_str)
+    if n * items >= 10 ** d or n <= 0:
+        return None  # GRIM is uninformative at this precision
+    m = float(m_str)
+    nn = n * items
+    for T in (int(m * nn) - 1, int(m * nn), int(m * nn) + 1, int(m * nn) + 2):
+        if _hu(T / nn, d) == Decimal(m_str):
+            return True
+    return False
+
+
+def grim_pct_ok(p_str: str, n: int) -> bool | None:
+    d = _decimals(p_str)
+    if n <= 0 or n >= 10 ** (d + 2):
+        return None
+    target = Decimal(p_str)
+    for k in range(0, n + 1):
+        if _hu(100.0 * k / n, d) == target:
+            return True
+    return False
+
+
+GRIM_MEAN_RX = [
+    re.compile(r"\b(?:M|mean|Mean|average)\s*(?:=|of|was|:)\s*(?P<m>\d+\.\d+)(?:[^.;]|\.(?=\d)){0,80}?\b[nN]\s*=\s*(?P<n>\d+)"),
+    re.compile(r"\b[nN]\s*=\s*(?P<n>\d+)(?:[^.;]|\.(?=\d)){0,80}?\b(?:M|mean|Mean|average)\s*(?:=|of|was|:)\s*(?P<m>\d+\.\d+)"),
+]
+GRIM_PCT_RX = [
+    re.compile(r"(?P<p>\d+(?:\.\d+)?)\s*%(?!\s*(?:CI|confidence|credible))[^.;%]{0,40}?\(?\s*[nN]\s*=\s*(?P<n>\d+)\s*\)?"),
+]
+PM_RX = re.compile(r"(?P<m>\d+(?:\.\d+)?)\s*(?P<pc1>%)?\s*(?:±|\+/-|\+/−|\+-)\s*(?P<s>\d+(?:\.\d+)?)\s*(?P<pc2>%)?")
+UNIT_WORDS = re.compile(r"\b(accuracy|AUC|AUROC|F1|precision|recall|probability|proportion|rate|fraction|score)\b",
+                        re.I)
+DELTA_RX = re.compile(r"\bfrom\s+(?P<a>\d+(?:\.\d+)?)\s*(?P<pa>%)?(?:\s*[A-Za-zµ°/]{1,6})?\s+to\s+(?P<b>\d+(?:\.\d+)?)"
+                      r"\s*(?P<pb>%)?(?:\s*[A-Za-zµ°/]{1,6}\b)?(?P<mid>(?:[^.;]|\.(?=\d)){0,80}?)(?P<c>\d+(?:\.\d+)?)\s*(?P<u>%|-fold|×|x\b|fold|percentage points?|pp\b|points?)")
+COMPARE_RX = re.compile(r"\b(outperform\w*|better than|superior|higher than|lower than|exceeds?|improv\w+ (?:over|on)|"
+                        r"beats?|surpass\w*)\b", re.I)
+
+
+def _range_vals(f, a: float, ha: float, b: float, hb: float) -> tuple[float, float]:
+    vals = []
+    for x in (a - ha, a + ha):
+        for y in (b - hb, b + hb):
+            try:
+                vals.append(f(x, y))
+            except ZeroDivisionError:
+                pass
+    return (min(vals), max(vals)) if vals else (float("nan"), float("nan"))
+
+
+def extra_checks(t: str, src, bounds: tuple[float, float] | None, items: int) -> list[dict]:
+    rows = []
+
+    def loc(off):
+        fl, ln = src.loc(t.count("\n", 0, off))
+        return f"{fl}:{ln}"
+    seen = set()
+    for rx in GRIM_MEAN_RX:
+        for m in rx.finditer(t):
+            key = ("grim", m.start("m"))
+            if key in seen:
+                continue
+            seen.add(key)
+            ok = grim_mean_ok(m.group("m"), int(m.group("n")), items)
+            if ok is None:
+                continue
+            rows.append({"loc": loc(m.start()), "test": "GRIM mean", "reported": re.sub(r"\s+", " ", m.group(0))[:120],
+                         "computed_p": None, "computed_range": [],
+                         "status": "ok" if ok else "CHECK",
+                         "note": "" if ok else f"no integer total over n={m.group('n')}"
+                                                f"{' x ' + str(items) + ' items' if items > 1 else ''} gives this mean; "
+                                                "impossible if the scores are integers (counts, single Likert items)"})
+    for rx in GRIM_PCT_RX:
+        for m in rx.finditer(t):
+            ok = grim_pct_ok(m.group("p"), int(m.group("n")))
+            if ok is None or ok:
+                continue
+            rows.append({"loc": loc(m.start()), "test": "GRIM %", "reported": re.sub(r"\s+", " ", m.group(0))[:120],
+                         "computed_p": None, "computed_range": [], "status": "CHECK",
+                         "note": f"no k/{m.group('n')} rounds to {m.group('p')}% (check whether it is a proportion of "
+                                 "that n)"})
+    for m in PM_RX.finditer(t):
+        mval, sval = float(m.group("m")), float(m.group("s"))
+        ctx = t[max(0, m.start() - 80):m.end() + 40]
+        lo_hi = None
+        if m.group("pc1") or m.group("pc2"):
+            lo_hi = (0.0, 100.0)
+        elif mval <= 1 and UNIT_WORDS.search(ctx):
+            lo_hi = (0.0, 1.0)
+        elif bounds:
+            lo_hi = bounds
+        if not lo_hi or not (lo_hi[0] <= mval <= lo_hi[1]):
+            continue
+        smax = ((lo_hi[1] - mval) * (mval - lo_hi[0])) ** 0.5
+        if sval > smax * 1.12 + 0.5 * 10 ** -_decimals(m.group("s")):
+            rows.append({"loc": loc(m.start()), "test": "SD bound", "reported": m.group(0), "computed_p": None,
+                         "computed_range": [], "status": "CHECK",
+                         "note": f"SD {sval} exceeds the Bhatia-Davis maximum {smax:.3g} for values in "
+                                 f"[{lo_hi[0]:g}, {lo_hi[1]:g}] (is it an SD of this metric? a typo? SE vs SD?)"})
+    for m in DELTA_RX.finditer(t):
+        a, b, c = float(m.group("a")), float(m.group("b")), float(m.group("c"))
+        ha, hb = 0.5 * 10 ** -_decimals(m.group("a")), 0.5 * 10 ** -_decimals(m.group("b"))
+        hc = 0.5 * 10 ** -_decimals(m.group("c"))
+        u = m.group("u").lower()
+        cands = []
+        if u in ("%",):
+            cands.append(("relative %", _range_vals(lambda x, y: abs(y - x) / x * 100, a, ha, b, hb)))
+            if m.group("pa") or m.group("pb"):
+                cands.append(("percentage points", _range_vals(lambda x, y: abs(y - x), a, ha, b, hb)))
+        elif "fold" in u or u in ("×", "x"):
+            cands.append(("fold", _range_vals(lambda x, y: max(x, y) / min(x, y), a, ha, b, hb)))
+        else:
+            cands.append(("absolute", _range_vals(lambda x, y: abs(y - x), a, ha, b, hb)))
+        ok = any(lo - hc - 1e-9 <= c <= hi + hc + 1e-9 for _, (lo, hi) in cands)
+        desc = "; ".join(f"{k} {lo:.3g}–{hi:.3g}" for k, (lo, hi) in cands)
+        rows.append({"loc": loc(m.start()), "test": "delta", "reported": re.sub(r"\s+", " ", m.group(0))[:120],
+                     "computed_p": None, "computed_range": [], "status": "ok" if ok else "INCONSISTENT",
+                     "note": f"stated {c:g}{m.group('u')}; from {a:g} to {b:g} gives {desc}"})
+    # 'outperforms' while +/- intervals overlap
+    for sm in re.finditer(r"(?:[^.;]|\.(?=\d))*" + COMPARE_RX.pattern + r"(?:[^.;]|\.(?=\d))*", t, re.I):
+        pms = list(PM_RX.finditer(sm.group(0)))
+        if len(pms) >= 2:
+            (m1, s1), (m2, s2) = [(float(x.group("m")), float(x.group("s"))) for x in pms[:2]]
+            if abs(m1 - m2) <= s1 + s2:
+                rows.append({"loc": loc(sm.start()), "test": "overlap", "reported": re.sub(r"\s+", " ",
+                             sm.group(0)).strip()[:140], "computed_p": None, "computed_range": [], "status": "CHECK",
+                             "note": f"comparison claimed while {m1:g}±{s1:g} and {m2:g}±{s2:g} overlap: report a test "
+                                     "or effect size with uncertainty, or soften the comparison"})
     return rows
 
 
@@ -879,6 +1023,9 @@ def main(argv=None):
     st.add_argument("main", nargs="+")
     st.add_argument("--out", required=True)
     st.add_argument("--alpha", type=float, default=0.05)
+    st.add_argument("--bounds", help="lo,hi of a bounded scale for the SD check, e.g. 1,7 for a 7-point Likert scale "
+                                     "(percentages and [0,1] metrics are detected automatically)")
+    st.add_argument("--items", type=int, default=1, help="items per score for GRIM (multi-item scale means)")
     args = ap.parse_args(argv)
     if args.cmd == "guard-init":
         guard_init(args.numbers_json, args.out, args.regions.split(",") if args.regions else None)
@@ -888,7 +1035,8 @@ def main(argv=None):
     if args.cmd == "stats":
         rows = []
         for m in args.main:
-            rows += stats_check(m, args.alpha)
+            b = tuple(float(x) for x in args.bounds.split(",")) if args.bounds else None
+            rows += stats_check(m, args.alpha, b, args.items)
         write_stats(rows, args.out, ", ".join(args.main))
         return
     if args.cmd == "extract":

@@ -10,12 +10,18 @@ Subcommands
         Checks the status line, status words, evidence paths, review state of
         'proved' results, 'reopen if' conditions of failed routes; flags notes
         without a status header and strong-claim sentences in notes.
+  graph LEDGER.md                      dependency tree; cycles; results relying on retracted/negative/failed
+                                       nodes; VERIFIED results with unverified dependencies; targets ready to
+                                       attempt (all dependencies VERIFIED)
+  card --id X7 --out notes/X7.md       idea card: hypothesis, prediction, falsification criterion, plan,
+                                       dependencies, difference from failed routes, budget
   status LEDGER.md                     counts by status, open targets, last log entry
 
 Status words
   results (section 1): VERIFIED, UNVERIFIED, CONDITIONAL, PRELIMINARY, NEGATIVE, RETRACTED
                        (aliases accepted: PROVED-REVIEWED, PROVED-UNREVIEWED, REPLICATED, HEURISTIC, NULL, ...)
-  routes  (section 4): FAILED, PARTIAL, SUPERSEDED, IN-PROGRESS, SUCCEEDED
+  routes  (section 4): FAILED, BLOCKED (technical; not evidence against the idea), INCONCLUSIVE,
+                       PARTIAL, SUPERSEDED, IN-PROGRESS, SUCCEEDED
 """
 from __future__ import annotations
 
@@ -33,7 +39,10 @@ STATUS_ALIASES = {"PROVED-REVIEWED": "VERIFIED", "PROVED": "UNVERIFIED?", "PROVE
                   "REPLICATED": "VERIFIED", "REPRODUCED": "VERIFIED", "SINGLE-RUN": "UNVERIFIED",
                   "SINGLE-STUDY": "UNVERIFIED", "HEURISTIC": "PRELIMINARY", "EXPLORATORY": "PRELIMINARY",
                   "PILOT": "PRELIMINARY", "NULL": "NEGATIVE", "NOT-SUPPORTED": "NEGATIVE"}
-ROUTE_STATUS = {"FAILED", "PARTIAL", "SUPERSEDED", "IN-PROGRESS", "SUCCEEDED"}
+ROUTE_STATUS = {"FAILED", "PARTIAL", "SUPERSEDED", "IN-PROGRESS", "SUCCEEDED", "BLOCKED", "INCONCLUSIVE"}
+ROUTE_ALIASES = {"TECH-FAIL": "BLOCKED", "TECHNICAL-FAILURE": "BLOCKED", "ERROR": "BLOCKED", "STALLED": "BLOCKED",
+                 "UNDECIDED": "INCONCLUSIVE", "NO-CONCLUSION": "INCONCLUSIVE", "MIXED": "INCONCLUSIVE"}
+ID_RX = re.compile(r"\b[A-Z]{1,3}\d+[a-z]?\b")
 STRONG_CLAIM = re.compile(
     r"\b(we have (?:now )?(?:proved|proven|shown|established|solved|confirmed|demonstrated)|"
     r"this (?:proves|establishes|settles|solves|confirms)|definitively|conclusively|"
@@ -53,12 +62,16 @@ Current best: - (status, evidence)
 Status words. Results: VERIFIED (independently checked: proof reviewed / result replicated / analysis re-run by
 someone else), UNVERIFIED (complete but not independently checked), CONDITIONAL(hypothesis or assumption),
 PRELIMINARY (heuristic, pilot, exploratory, trend), NEGATIVE (tested and not supported), RETRACTED.
-Routes (approaches, experiments, analyses, proof strategies): FAILED, PARTIAL, SUPERSEDED, IN-PROGRESS, SUCCEEDED.
+Routes (approaches, experiments, analyses, proof strategies): FAILED (the idea does not work, with the reason),
+BLOCKED (could not be carried out: compute, bug, access, time; NOT evidence against the idea), INCONCLUSIVE (carried
+out, but the result does not decide), PARTIAL, SUPERSEDED, IN-PROGRESS, SUCCEEDED.
+Dependencies: list the IDs a result or target relies on in "Depends on" (results, targets, conjectures). A result
+can be VERIFIED only if everything it depends on is VERIFIED; otherwise mark it CONDITIONAL(<IDs>).
 
 ## 1. Results
 
-| ID | Result (exact statement or pointer) | Status | Evidence | Reviewed / verified (by, date) |
-|---|---|---|---|---|
+| ID | Result (exact statement or pointer) | Status | Depends on | Evidence | Reviewed / verified (by, date) |
+|---|---|---|---|---|---|
 
 ## 2. Data and numerical evidence
 
@@ -67,8 +80,8 @@ Routes (approaches, experiments, analyses, proof strategies): FAILED, PARTIAL, S
 
 ## 3. Open targets (ranked)
 
-| ID | Target statement | Would give | Why hard / barrier |
-|---|---|---|---|
+| ID | Target statement | Would give | Depends on | Why hard / barrier |
+|---|---|---|---|---|
 
 ## 4. Routes tried
 
@@ -80,7 +93,13 @@ Routes (approaches, experiments, analyses, proof strategies): FAILED, PARTIAL, S
 | Barrier | What it says | Routes that hit it |
 |---|---|---|
 
-## 6. Log
+## 6. Stop rules
+
+- Budget: <time / compute / money available for this goal>
+- Stop or pivot when: <e.g. N consecutive routes stop at the same barrier; budget spent; review date reached>
+- Review date: <YYYY-MM-DD>
+
+## 7. Log
 
 - {date}: ledger created.
 """
@@ -157,7 +176,7 @@ def col(row: dict, *names: str) -> str:
 def section_kind(title: str) -> str:
     t = title.lower()
     for key, kind in (("route", "routes"), ("result", "results"), ("proven", "results"), ("numer", "numerics"),
-                      ("open", "targets"), ("target", "targets"), ("barrier", "barriers")):
+                      ("open", "targets"), ("target", "targets"), ("barrier", "barriers"), ("stop", "stop")):
         if key in t:
             return kind
     return "other"
@@ -314,6 +333,12 @@ def cmd_lint(args):
             elif kind == "routes":
                 st = col(row, "outcome", "status").upper()
                 key = re.split(r"[\s(]", st)[0] if st else ""
+                key = ROUTE_ALIASES.get(key, key)
+                if key == "BLOCKED" and not col(row, "stops"):
+                    problems.append(f"{loc}: BLOCKED route without the blocking reason in 'stops at' "
+                                    "(compute, bug, access, time)")
+                if key == "INCONCLUSIVE" and not col(row, "stops"):
+                    problems.append(f"{loc}: INCONCLUSIVE route without saying why it does not decide")
                 if key not in ROUTE_STATUS:
                     problems.append(f"{loc}: route outcome '{st}' not one of {sorted(ROUTE_STATUS)}")
                 if key in ("FAILED", "PARTIAL") and not col(row, "stops"):
@@ -326,6 +351,12 @@ def cmd_lint(args):
                 if p0 and "/" in p0 or re.search(r"\.\w+$", p0 or ""):
                     if not os.path.exists(os.path.join(base, p0)) and not os.path.exists(p0):
                         problems.append(f"line {lineno}: evidence path not found: {p0}")
+    if not any(section_kind(t["section"]) == "stop" for t in all_tables) and \
+            not any(re.match(r"^#{1,4}\s.*stop", ln, re.I) for ln in lines):
+        notes_out.append("no 'Stop rules' section: add a budget and the condition for stopping or pivoting")
+    g = analyse_graph(build_graph(lines))
+    problems += g["problems"]
+    notes_out += g["warnings"]
     for d in args.notes:
         paths = [d] if os.path.isfile(d) else [os.path.join(r, f) for r, _, fs in os.walk(d) for f in fs
                                                   if f.endswith(".md")]
@@ -345,6 +376,155 @@ def cmd_lint(args):
     print(f"\n## To check ({len(notes_out)})\n")
     print("\n".join(f"- {x}" for x in notes_out[:200]) or "- none")
     sys.exit(1 if problems else 0)
+
+
+# ---------------------------------------------------------------------------
+# dependency graph
+# ---------------------------------------------------------------------------
+def build_graph(lines: list[str]) -> dict:
+    """nodes: id -> {kind, status, deps, line, text}"""
+    nodes: dict[str, dict] = {}
+    for t in tables(lines):
+        kind = section_kind(t["section"])
+        if kind not in ("results", "targets", "routes"):
+            continue
+        for lineno, row in t["rows"]:
+            nid = col(row, "id").strip()
+            if not nid:
+                continue
+            if kind == "results":
+                st = col(row, "status").upper()
+                key = re.split(r"[\s(]", st)[0] if st else ""
+                key = STATUS_ALIASES.get(key, key).rstrip("?")
+            elif kind == "targets":
+                st, key = "OPEN", "OPEN"
+            else:
+                st = col(row, "outcome", "status").upper()
+                key = re.split(r"[\s(]", st)[0] if st else ""
+                key = ROUTE_ALIASES.get(key, key)
+            deps = ID_RX.findall(col(row, "depends"))
+            nodes[nid] = {"kind": kind, "status": key, "raw_status": st, "deps": deps, "line": lineno,
+                          "text": (col(row, "result", "target", "route") or "")[:80]}
+    return nodes
+
+
+def analyse_graph(nodes: dict) -> dict:
+    problems, warnings, ready, waiting = [], [], [], []
+    for nid, n in nodes.items():
+        for d in n["deps"]:
+            if d not in nodes:
+                problems.append(f"{nid} (line {n['line']}) depends on {d}, which is not in the ledger")
+    # cycles
+    color: dict[str, int] = {}
+    cycles = []
+
+    def dfs(u, stack):
+        color[u] = 1
+        stack.append(u)
+        for v in nodes[u]["deps"]:
+            if v not in nodes:
+                continue
+            if color.get(v) == 1:
+                cycles.append(stack[stack.index(v):] + [v])
+            elif not color.get(v):
+                dfs(v, stack)
+        stack.pop()
+        color[u] = 2
+    for u in nodes:
+        if not color.get(u):
+            dfs(u, [])
+    for c in cycles:
+        problems.append("dependency cycle: " + " -> ".join(c))
+
+    def upstream(u, seen=None):
+        seen = seen if seen is not None else set()
+        for v in nodes.get(u, {}).get("deps", []):
+            if v in nodes and v not in seen:
+                seen.add(v)
+                upstream(v, seen)
+        return seen
+    for nid, n in nodes.items():
+        ups = upstream(nid)
+        bad = [u for u in ups if nodes[u]["status"] in ("RETRACTED", "NEGATIVE", "FAILED")]
+        if bad:
+            problems.append(f"{nid} (line {n['line']}) relies on {', '.join(sorted(bad))} "
+                            f"({', '.join(nodes[b]['status'] for b in sorted(bad))}): re-check or retract it")
+        if n["status"] == "VERIFIED":
+            weak = [u for u in ups if nodes[u]["status"] not in ("VERIFIED",)]
+            if weak:
+                problems.append(f"{nid} (line {n['line']}) is VERIFIED but depends on "
+                                + ", ".join(f"{u} ({nodes[u]['status']})" for u in sorted(weak))
+                                + ": mark it CONDITIONAL(" + ",".join(sorted(weak)) + ") or verify those first")
+        if n["status"] == "CONDITIONAL":
+            named = set(ID_RX.findall(n["raw_status"]))
+            unlisted = [u for u in n["deps"] if u in nodes and nodes[u]["status"] != "VERIFIED" and u not in named]
+            if unlisted:
+                warnings.append(f"{nid}: CONDITIONAL should name its open dependencies: {', '.join(unlisted)}")
+        if n["kind"] == "targets" or n["status"] in ("IN-PROGRESS",):
+            open_deps = [u for u in n["deps"] if u in nodes and nodes[u]["status"] != "VERIFIED"]
+            (waiting if open_deps else ready).append((nid, n, open_deps))
+    return {"problems": problems, "warnings": warnings, "ready": ready, "waiting": waiting}
+
+
+def cmd_graph(args):
+    lines = read(args.ledger)
+    nodes = build_graph(lines)
+    a = analyse_graph(nodes)
+    print(f"# Dependency graph: {len(nodes)} nodes\n")
+    users: dict[str, list[str]] = {u: [] for u in nodes}
+    for nid, n in nodes.items():
+        for d in n["deps"]:
+            users.setdefault(d, []).append(nid)
+
+    def show(u, depth, seen):
+        n = nodes.get(u)
+        tag = f"{n['status']}" if n else "MISSING"
+        print("  " * depth + f"- {u} [{tag}] {n['text'] if n else ''}")
+        if u in seen:
+            return
+        seen.add(u)
+        for d in (n["deps"] if n else []):
+            show(d, depth + 1, seen)
+    roots = [u for u in nodes if not users.get(u)] or list(nodes)
+    for r in roots:
+        show(r, 0, set())
+    print(f"\n## Problems ({len(a['problems'])})\n")
+    print("\n".join(f"- {x}" for x in a["problems"]) or "- none")
+    if a["warnings"]:
+        print("\n## Warnings\n")
+        print("\n".join(f"- {x}" for x in a["warnings"]))
+    print("\n## Ready to attempt (all dependencies VERIFIED)\n")
+    print("\n".join(f"- {nid}: {n['text']}" for nid, n, _ in a["ready"]) or "- none")
+    print("\n## Waiting on dependencies\n")
+    print("\n".join(f"- {nid}: needs {', '.join(d)}" for nid, n, d in a["waiting"]) or "- none")
+    sys.exit(1 if a["problems"] else 0)
+
+
+CARD = """# Idea card {id}: <one-line idea>
+
+Date: {date}. Ledger: {ledger}
+
+- **Hypothesis / claim to establish:**
+- **Prediction or deliverable** (what will be true or produced if it works):
+- **Falsification / success criterion, fixed before starting:**
+- **Verification plan** (proof steps, experiment, analysis; who or what checks it independently):
+- **Depends on** (ledger IDs that must hold first):
+- **Similar routes in the ledger** (`ledger.py search`) and the difference statement (what is new, and why it gets past the recorded barrier):
+- **Budget** (time / compute / money) and the point at which to stop:
+
+## Status
+
+**Not started. Nothing is claimed.**
+"""
+
+
+def cmd_card(args):
+    if os.path.exists(args.out):
+        sys.exit(f"{args.out} exists; not overwriting")
+    os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
+    with open(args.out, "w", encoding="utf-8") as fh:
+        fh.write(CARD.format(id=args.id, date=dt.date.today().isoformat(), ledger=args.ledger or "<path>"))
+    print(f"created {args.out}")
 
 
 def cmd_status(args):
@@ -384,6 +564,14 @@ def main(argv=None):
     p.add_argument("ledger")
     p.add_argument("--notes", nargs="*", default=[])
     p.set_defaults(func=cmd_lint)
+    p = sub.add_parser("graph")
+    p.add_argument("ledger")
+    p.set_defaults(func=cmd_graph)
+    p = sub.add_parser("card")
+    p.add_argument("--id", required=True)
+    p.add_argument("--out", required=True)
+    p.add_argument("--ledger")
+    p.set_defaults(func=cmd_card)
     p = sub.add_parser("status")
     p.add_argument("ledger")
     p.set_defaults(func=cmd_status)

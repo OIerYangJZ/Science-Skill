@@ -25,6 +25,11 @@ Codes
   G1  check script that tests a number with a substring test (str(v) in text):
       "0.47" is a substring of "10.47"
   G2  shell: grep -c ... || echo 0 (prints "0\\n0" when nothing matches)
+  X1  placeholder or synthetic data on a result path: random numbers assigned
+      to a result-like variable (scores, acc, results, metrics), or
+      dummy / placeholder / fake / TODO markers outside tests
+  X2  metric-like function (accuracy, f1, auc, score, error, ...) defined but
+      never referenced in the scanned code (a dead metric)
 """
 from __future__ import annotations
 
@@ -49,6 +54,13 @@ RNG_BASES = re.compile(r"^(rng|rs|random|np\.random|numpy\.random|torch|gen|gene
 PLOT_FUNCS = {"set_title", "title", "suptitle", "text", "annotate", "set_xlabel", "set_ylabel", "xlabel", "ylabel",
               "figtext", "set_label", "legend", "set_text", "add_annotation", "update_layout"}
 SEED_KW = {"seed", "random_state", "random_seed", "rng_seed"}
+RESULT_NAME = re.compile(r"(^|_)(results?|scores?|metrics?|acc|accuracy|auc|f1|precision|recall|loss|errors?|perf|"
+                         r"performance|outputs?|preds?|predictions|y_pred|y_hat|ground_?truth|gt|labels?)(_|$)", re.I)
+METRIC_FUNC = re.compile(r"(accuracy|precision|recall|f1|auc|roc|score|metric|error|loss|bleu|rouge|rmse|mae|mse|"
+                         r"psnr|ssim|iou|map\b)", re.I)
+PLACEHOLDER = re.compile(r"\b(dummy|placeholder|fake|lorem ipsum|hard-?coded|mock(ed)? (data|result)s?)\b", re.I)
+PLACEHOLDER_NEG = re.compile(r"\b(no|not|non|without|replac\w*|remov\w*|instead of)\b|无|非|替换|去除|删除|不是", re.I)
+TODO_RX = re.compile(r"#\s*(TODO|FIXME|HACK|XXX)\b")
 NUM_IN_TEXT = re.compile(r"(?<![A-Za-z_])\d+\.\d+|\d+\s*(?:°|%|\\%|deg|m\b|km|ms|s\b)|\d{3,}")
 
 
@@ -97,10 +109,14 @@ def num_const(node) -> bool:
 
 
 class Visitor(ast.NodeVisitor):
-    def __init__(self, path: str, lines: list[str], hits: list, seeds: dict):
+    def __init__(self, path: str, lines: list[str], hits: list, seeds: dict, defs: dict | None = None,
+                 refs: set | None = None):
         self.path, self.lines, self.hits, self.seeds = path, lines, hits, seeds
+        self.defs = defs if defs is not None else {}
+        self.refs = refs if refs is not None else set()
         self.func_stack: list[ast.AST] = []
         self._seen: set = set()
+        self.is_test = bool(re.search(r"(^|/)(tests?|testing)(/|$)|(^|/)test_|_test\.py$", path))
         self.check_script = bool(re.search(r"check|guard|verify|assert|validate|test", os.path.basename(path), re.I))
 
     def hit(self, code: str, node: ast.AST, note: str):
@@ -239,7 +255,38 @@ class Visitor(ast.NodeVisitor):
         rets = [n for n in ast.walk(fn) if isinstance(n, ast.Return) and n.value is not None]
         return any(not num_const(r.value) for r in rets) and any(num_const(r.value) for r in rets)
 
+    def visit_Assign(self, node: ast.Assign):
+        if not self.is_test:
+            names = []
+            for t in node.targets:
+                for sub in ast.walk(t):
+                    if isinstance(sub, ast.Name):
+                        names.append(sub.id)
+                    elif isinstance(sub, ast.Attribute):
+                        names.append(sub.attr)
+            if any(RESULT_NAME.search(n) for n in names) and any(is_rng_call(x) for x in ast.walk(node.value)):
+                self.hit("X1", node, "random numbers assigned to a result-like variable: placeholder or synthetic data "
+                                     "on a result path? Confirm it never reaches a reported number")
+        self.generic_visit(node)
+
+    def visit_Constant(self, node: ast.Constant):
+        if (not self.is_test and isinstance(node.value, str) and PLACEHOLDER.search(node.value)
+                and len(node.value) < 200 and not re.fullmatch(r"\w+", node.value)
+                and not PLACEHOLDER_NEG.search(node.value)):
+            self.hit("X1", node, f"placeholder marker in a string ({PLACEHOLDER.search(node.value).group(0)!r})")
+        self.generic_visit(node)
+
+    def visit_Name(self, node: ast.Name):
+        self.refs.add(node.id)
+        self.generic_visit(node)
+
+    def visit_Attribute(self, node: ast.Attribute):
+        self.refs.add(node.attr)
+        self.generic_visit(node)
+
     def visit_FunctionDef(self, node):
+        if not self.is_test and METRIC_FUNC.search(node.name) and not node.name.startswith("test"):
+            self.defs.setdefault(node.name, []).append((self.path, node.lineno, src_line(self.lines, node.lineno)))
         self.func_stack.append(node)
         self.generic_visit(node)
         self.func_stack.pop()
@@ -269,6 +316,8 @@ REGEX_RULES[".bash"] = REGEX_RULES[".sh"]
 def scan(paths: list[str], excludes: list[str]) -> tuple[list[dict], dict, int]:
     hits: list[dict] = []
     seeds: dict = defaultdict(list)
+    defs: dict = {}
+    refs: set = set()
     nfiles = 0
     for root_path in paths:
         for root, dirs, files in os.walk(root_path):
@@ -294,7 +343,13 @@ def scan(paths: list[str], excludes: list[str]) -> tuple[list[dict], dict, int]:
                         tree = ast.parse(text)
                     except SyntaxError:
                         continue
-                    Visitor(rel, lines, hits, seeds).visit(tree)
+                    Visitor(rel, lines, hits, seeds, defs, refs).visit(tree)
+                    if not re.search(r"(^|/)(tests?|testing)(/|$)|(^|/)test_|_test\.py$", rel):
+                        for i, line in enumerate(lines, 1):
+                            if TODO_RX.search(line):
+                                hits.append({"code": "X1", "file": rel, "line": i, "src": line.strip()[:160],
+                                             "note": "unfinished-code marker: check that this path does not "
+                                                     "produce a reported number"})
                 else:
                     for code, rx, note in REGEX_RULES[ext]:
                         for i, line in enumerate(lines, 1):
@@ -305,6 +360,12 @@ def scan(paths: list[str], excludes: list[str]) -> tuple[list[dict], dict, int]:
                                 else:
                                     hits.append({"code": code, "file": rel, "line": i, "src": line.strip()[:160],
                                                  "note": note})
+    for name, places in defs.items():
+        if name not in refs:
+            for f, ln, src in places:
+                hits.append({"code": "X2", "file": f, "line": ln, "src": src,
+                             "note": f"metric-like function '{name}' is never referenced: a metric described in the "
+                                     "paper may never be computed, or a different one is used"})
     return hits, seeds, nfiles
 
 
@@ -314,6 +375,7 @@ TITLES = {
     "R1": "Random draws inside conditions", "R2": "Random draws in only one branch",
     "P1": "Numbers hard-coded in figure text", "L1": "Preprocessing fitted before the train/test split",
     "G1": "Numbers checked by substring", "G2": "Shell matching pitfalls",
+    "X1": "Placeholder or synthetic data on a result path", "X2": "Metric functions never used",
 }
 
 

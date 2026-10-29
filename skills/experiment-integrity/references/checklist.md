@@ -69,7 +69,31 @@ Work through the sections that apply. For each item, record in the design ledger
 - [ ] Checks run in the required order. Freshness hashes chained across steps produce false failures, or stale passes, when they run out of order.
 - [ ] Checks fail loudly. A check that cannot find its input reports an error, not a pass.
 
-## 10. Domain notes
+## 10. Evaluation validity and selective reporting
+
+- [ ] **Independent ground truth.** Reference labels, targets or "gold" answers were not produced by the method under test, by an earlier version of it, or by a model of the same family. Circular ground truth makes any agreement score meaningless.
+- [ ] **No self-normalization.** Scores are not normalized by the method's own statistics (its own best run, its own maximum, its own baseline variant) in a way that guarantees a good-looking value. Normalizers are external or shared by all compared methods.
+- [ ] **Every described metric is computed.** Each metric named in the methods is produced by code and appears in a result file (scan code X2 finds metric functions that are never called). Metrics that were computed but are not reported are listed, with the reason.
+- [ ] **No placeholder data.** No random, dummy, hard-coded or "TODO" values sit on a path that produces a reported number (X1). Search for leftover synthetic data generators, mocked results and test fixtures reused as results.
+- [ ] **Judges and raters are validated.** When an LLM or another model scores outputs:
+  - agreement with human judgments is measured on a sample;
+  - position and length bias are checked (swap the order, control the length);
+  - the judge does not belong to the same model family as a compared system, or self-preference is measured;
+  - the judge model, version, prompt and temperature are recorded.
+
+  Human raters: blinding to condition, inter-rater agreement, and instructions are reported.
+- [ ] **Selective reporting.** Compare what was planned, run and reported:
+  - conditions, datasets, seeds or subgroups that were run but dropped;
+  - a primary metric switched after seeing results;
+  - a "best of n" run presented as typical;
+  - stopping or exclusion rules decided after looking at outcomes.
+
+  Anything dropped is either reported or listed with the reason.
+- [ ] **Ablations isolate one change.** An ablation removes one component while everything else (data, budget, tuning, seeds) stays fixed. Gains attributed to a component are not confounded with other changes made at the same time.
+- [ ] **Reproduction artifacts exist.** Configs, seeds, software versions, environment, data snapshot or access instructions, and the exact command for each reported number.
+- [ ] **Suspicious regularity.** Numbers that are too clean are checked against raw outputs: identical spreads across conditions, round or repeated values, every curve monotone, every comparison significant, or results that match the hypothesis more closely than the stated noise allows.
+
+## 11. Domain notes
 
 - **Simulation and modeling.** Seeds per instance; closed forms; convergence; edge-case inputs (fewer than k points, empty sets); fallbacks in optimizers and planners.
 - **Machine learning.** Data leakage (preprocessing, duplicates across splits, temporal leakage); tuning on test data; seed variance; baselines retuned; benchmark contamination.

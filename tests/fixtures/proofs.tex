@@ -1,0 +1,22 @@
+\documentclass{article}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{conj}{Conjecture}
+\newcommand{\eps}{\varepsilon}
+\begin{document}
+\begin{abstract}Test.\end{abstract}
+\section{Introduction}
+\begin{conj}[Hypothesis H]\label{conj:H} Every set in the family is sparse.\end{conj}
+\begin{lemma}\label{lem:a} For some absolute constant $C$, $f \le C g$.\end{lemma}
+\begin{proof} By Lemma~\ref{lem:b} this is clear. Clearly the remaining case is similar.\end{proof}
+\begin{lemma}\label{lem:b} $g \le f$.\end{lemma}
+\begin{proof} Follows from Lemma~\ref{lem:a} and Eq.~\eqref{eq:missing}. One can show the rest.\end{proof}
+\begin{lemma}\label{lem:unused} An unused bound.\end{lemma}
+\begin{proof} Routine.\end{proof}
+\begin{theorem}\label{thm:main} Assuming Conjecture~\ref{conj:H}, the rate is at least $3-o(1)$ for sufficiently large $L$.\end{theorem}
+\begin{theorem}\label{thm:second} The rate is at least $2$.\end{theorem}
+\section{Proofs}
+\begin{proof}[Proof of Theorem~\ref{thm:main}] Combine Lemma~\ref{lem:a} with a standard argument.\end{proof}
+\begin{lemma}\label{lem:noproof} An unproved estimate.\end{lemma}
+\renewcommand{\eps}{\epsilon}
+\end{document}

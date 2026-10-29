@@ -1,6 +1,6 @@
 # Defensive writing and overclaiming: categories, detection, fixes
 
-The numbering matches `scripts/hedge_scan.py`. The script catches only lexical cues (D1, D2, D4, D5, D6, D8, D10, D12, D13, O, S). Structural problems (D3, D7, D9, D11, D14) must be judged by reading the full text.
+The numbering matches `scripts/hedge_scan.py`. The script catches only lexical cues (D1, D2, D4, D5, D6, D8, D10, D12, D13, D15, D16, O, S). Structural problems (D3, D7, D9, D11, D14) must be judged by reading the full text.
 
 There is only one test: **Does this sentence help the editor see the result, or does it shield the author from criticism?** A sentence that shields against criticism need not be deleted. The usual fix is to move it to the scope paragraph or rewrite it as a positive conditional clause.
 
@@ -154,6 +154,28 @@ The judgment rests on the exemplars, not on intuition. The density of a given cl
 **Fix:** Name the baseline as the current best method or the production default, and give the factor in the same sentence. If some tool avoids the gap, acknowledge that as well.
 
 **Example (Case A):** materialize-first is in fact Qiskit preset optimization level 3. The original draft did not name it, which made it look like a straw man; the rewritten draft names it and acknowledges that TKET PauliSimp avoids the gap.
+
+## D15 Work-report narrative (lexical cues plus structure)
+
+**What it looks like:** The abstract, introduction or results read like a lab notebook: "We first tried X. Then we ran a series of experiments. Next, we trained Y. Finally, we compared…". Experiments appear in the order they were done, each introduced by what was done rather than by the question it answers.
+
+**Why it hurts:** The editor reads a sequence of activities and has to reconstruct the argument. Effort is visible; the claim is not. The chronology also exposes dead ends that are not part of the contribution.
+
+**Fix:** Order by the argument, not by the calendar. Each experiment or analysis is introduced by its argumentative role (the rule in `SKILL.md`, Phase 6): the question it answers and the claim it supports, then the result. Dead ends that matter go into a short "what does not work, and why" paragraph or a supplement; the rest go into `dead-end-ledger`, not the paper.
+- Original (Illustrative): "We first trained a linear model, which underperformed. Then we tried gradient boosting. Next, we ran experiments on three hospitals."
+- Revised: "Is the signal nonlinear? A linear model recovers 41% of the variance that gradient boosting recovers (Table 2). Does it transfer across sites? Performance drops by 3 points at the two held-out hospitals (Fig. 3)."
+
+## D16 Local weakness stated as global (lexical cues plus structure)
+
+**What it looks like:** A limitation observed in one case, dataset, parameter regime or subgroup is written as a property of the whole method: "our method may not generalize", "in some cases the approach is limited", "the framework has some limitations". Often the abstract or conclusion carries the vague version while the results section knows exactly where it happened.
+
+**Why it hurts:** A vague limitation reads as a confession that applies everywhere. The editor cannot tell whether the method fails at the edges or at the core, and assumes the worst. It also hides information: a precise boundary is itself a result.
+
+**Fix:** Name where the weakness appears, how large it is, and what holds elsewhere, once, in the scope paragraph. Do not repeat it in the abstract unless it changes the headline.
+- Original (Illustrative): "Our method may not generalize, and in some cases its accuracy is limited."
+- Revised: "Accuracy holds within 2 points across the four adult cohorts; in the pediatric cohort (n = 212) it drops by 9 points, which we trace to a different age distribution of the main predictor."
+
+**Boundary:** narrowing a stated weakness to where it was observed is calibration only if the weakness truly was not observed elsewhere. If it was not tested elsewhere, say that ("untested in X"), which is also specific. Do not drop the weakness (see `claim-calibration.md`, rule 10).
 
 ---
 

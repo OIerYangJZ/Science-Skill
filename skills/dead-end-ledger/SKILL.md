@@ -1,6 +1,6 @@
 ---
 name: dead-end-ledger
-description: Use when pushing one research goal forward over a long period (any discipline — attacking an open problem or conjecture, getting an experiment or measurement to work, improving a metric of a model or method, testing a hypothesis), to record progress honestly in a research ledger. The ledger contains a precise one-line status sentence at the top; graded results (independently verified / unverified / conditional / preliminary / negative / retracted); evidence with its range or sample; open targets ranked by feasibility; routes tried (proof ideas, experimental protocols, analysis or model changes), each with where it got stuck and under what conditions it is worth reopening; and a barrier index. Before trying each new route, check the ledger for duplicates; update the ledger at the end of each session; upgrade a result only after independent verification (proof review, replicated experiment, re-run by someone else); tell the user only what the ledger supports. Also use whenever the user asks to "keep pushing", "solve X", "make this work", or "report progress", or repeatedly asks for the same goal.
+description: Keep an honest research ledger when pushing one research goal forward over a long period, in any discipline (an open problem or conjecture, an experiment or measurement that must work, a metric to improve, a hypothesis to test). The ledger holds a one-line status; graded results (verified, unverified, conditional, preliminary, negative, retracted) with evidence and dependencies, so that a retracted result flags everything built on it; ranked open targets; routes tried, with where each stopped and when to reopen it, and technical failures recorded as BLOCKED rather than as evidence against the idea; a barrier index; and stop rules. Before each new route, check the ledger for duplicates and write an idea card with a falsifiable criterion; update the ledger after each session; upgrade a result only after independent verification; report only what the ledger supports. Use whenever the user asks to keep pushing, solve X, make this work, or report progress, or repeatedly asks for the same goal.
 argument-hint: "[ledger path LEDGER.md] [init|before|record|report]"
 ---
 
@@ -48,7 +48,15 @@ The author handled one long-running mathematical effort as follows; it can serve
 | Result | PRELIMINARY | Preliminary result | Heuristic argument; pilot experiment; exploratory analysis; trend |
 | Result | NEGATIVE | Tested; does not hold | Counterexample; negative result; change had no effect |
 | Result | RETRACTED | Verification found an error; retracted (entry and reason kept) | — |
-| Route | FAILED / PARTIAL / SUPERSEDED / IN-PROGRESS / SUCCEEDED | SUCCEEDED must link to an ID in the results table | Proof ideas, experimental protocols, analyses, model changes |
+| Route | FAILED | The idea does not work; the reason is recorded in "Stops at" | Barrier reached; counterexample; no effect |
+| Route | BLOCKED | Could not be carried out (compute, bug, access, time). **Not evidence against the idea** | Job killed; solver crashed; data not available |
+| Route | INCONCLUSIVE | Carried out, but the result does not decide | Numerics short of the relevant range; underpowered experiment |
+| Route | PARTIAL / SUPERSEDED / IN-PROGRESS / SUCCEEDED | SUCCEEDED must link to an ID in the results table | Proof ideas, experimental protocols, analyses, model changes |
+
+**Dependencies.** Results and open targets carry a "Depends on" column listing the IDs they rely on: other results, open targets such as conjectures, or assumptions recorded as targets.
+- A result can be VERIFIED only if everything upstream is VERIFIED; otherwise it is CONDITIONAL(<IDs>).
+- When an upstream node becomes RETRACTED, NEGATIVE or FAILED, every downstream node must be re-checked.
+- `ledger.py graph` shows the tree, finds cycles, missing IDs, VERIFIED results with unverified dependencies and nodes resting on retracted ones, and lists the targets whose dependencies are all VERIFIED ("ready to attempt").
 
 The script also accepts field-specific spellings such as PROVED-REVIEWED, PROVED-UNREVIEWED, REPLICATED, HEURISTIC, and NULL, and maps them automatically to the status words in the table above.
 
@@ -67,9 +75,15 @@ The script also accepts field-specific spellings such as PROVED-REVIEWED, PROVED
 
   Do not write something like "improve the method", for which there is no way to tell whether it has been achieved.
 
+Fill in the ledger's **Stop rules** section with the user at the start: the budget (time, compute, money), the condition for stopping or pivoting (for example, three consecutive routes stopped by the same barrier), and a review date. A long-running goal without stop rules turns into repeated "keep pushing" requests.
+
 ## Phase 1: Before starting (before)
 
-1. Write the new idea down in one paragraph: the route, the key steps, what you expect to obtain, and how success or failure will be judged. Write the criteria down in advance, so that results are not cherry-picked after the fact.
+1. Write the new idea as an idea card:
+   ```
+   python3 <skill-dir>/scripts/ledger.py card --id X7 --out <notes-dir>/X7.md --ledger LEDGER.md
+   ```
+   The card asks for the hypothesis or claim, the prediction or deliverable, the falsification or success criterion (fixed before starting), the verification plan (including who or what checks it independently), the dependencies, the difference from similar routes, and a budget with a stopping point. An idea that cannot state a criterion that could fail is not ready to attempt; revise it at most twice, then drop it or ask the user. Prefer targets listed as ready in `ledger.py graph`.
 2. Check for duplicates:
    ```
    python3 <skill-dir>/scripts/ledger.py search LEDGER.md "<idea>" --notes <notes-dir>
@@ -91,7 +105,10 @@ Update the ledger at the end of every work session:
 3. Evidence table: state what was tested, the range or sample covered, and the conclusion.
 4. Barriers table: new barriers, or newly blocked routes for existing barriers.
 5. Add a line to the log; **rewrite the status line at the top** with today's date, stating in one sentence what is now established and what is not.
-6. Run `ledger.py lint LEDGER.md --notes <notes-dir>`. Resolve all Problems; for each strong assertion under "To check", confirm that what the note says agrees with the ledger.
+6. Record dependencies for new results and targets, and run `ledger.py graph LEDGER.md`. When something was retracted or refuted, mark the affected downstream entries for re-checking.
+7. Technical failures are BLOCKED, not FAILED: record the blocking reason and what would unblock it. Do not count them as evidence against the idea.
+8. Run `ledger.py lint LEDGER.md --notes <notes-dir>`. Resolve all Problems; for each strong assertion under "To check", confirm that what the note says agrees with the ledger.
+9. Check the stop rules (Section 6 of the ledger): budget used, the number of consecutive routes stopped by the same barrier, the review date. When a stop rule triggers, say so in the report and propose stopping, pivoting or lowering the goal. Do not start another route silently.
 
 ## Phase 4: Upgrade after verification
 

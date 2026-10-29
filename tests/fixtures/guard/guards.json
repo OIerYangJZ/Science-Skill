@@ -1,0 +1,18 @@
+{
+ "manuscripts": ["paper.tex"],
+ "stale": ["102.32"],
+ "entries": [
+  {"id": "N0001", "where": "paper.tex:3", "display": "12.35%", "anchor": "the error rate", "macro": "",
+   "source": "results/metrics.json", "locator": "metrics.err", "scale": 100, "decimals": 2,
+   "thousands": false, "suffix": "%", "note": ""},
+  {"id": "N0002", "where": "paper.tex:3", "display": "1,753", "anchor": "the median latency", "macro": "",
+   "source": "results/metrics.json", "locator": "metrics.latency_ms", "scale": 1, "decimals": 0,
+   "thousands": true, "suffix": "", "note": ""},
+  {"id": "N0003", "where": "paper.tex:4", "display": "34.65", "anchor": "The upper bound gives", "macro": "",
+   "source": "results/metrics.json", "locator": "metrics.bound", "scale": 1, "decimals": 2,
+   "thousands": false, "suffix": "", "note": ""},
+  {"id": "N0004", "where": "paper.tex:7", "display": "0.47", "anchor": "the success rate reached", "macro": "",
+   "source": "results/metrics.json", "locator": "metrics.success", "scale": 1, "decimals": 2,
+   "thousands": false, "suffix": "", "note": ""}
+ ]
+}
