@@ -168,4 +168,4 @@ Case studies from other disciplines are welcome. The current evidence comes from
 
 ## License
 
-No license has been chosen yet.
+[MIT](LICENSE).

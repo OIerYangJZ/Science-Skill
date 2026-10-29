@@ -1,5 +1,7 @@
 {
   "name": "science-skill",
   "version": "0.2.0",
-  "description": "Skills that counter known failure modes of AI-assisted research: paper-polish (calibrated, exemplar-driven abstract/intro rewriting), number-audit (trace and recompute every number), cite-verify (bibliography metadata and claim support), novelty-audit (falsification-oriented prior-work search), mock-review (isolated, pinned, verified mock refereeing), dead-end-ledger (honest research progress ledger)."
+  "description": "Skills that counter known failure modes of AI-assisted research: paper-polish (calibrated, exemplar-driven abstract/intro rewriting), number-audit (trace and recompute every number), cite-verify (bibliography metadata and claim support), novelty-audit (falsification-oriented prior-work search), mock-review (isolated, pinned, verified mock refereeing), dead-end-ledger (honest research progress ledger).",
+  "license": "MIT",
+  "repository": "https://github.com/OIerYangJZ/Science-Skill"
 }
