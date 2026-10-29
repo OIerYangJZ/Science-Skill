@@ -18,6 +18,16 @@ Subcommands
       degrees of freedom (allowing for rounding), k/n (x%) percentages, and
       OR/RR/HR confidence intervals. Works on .tex, .docx, .md, .txt, .pdf.
 
+  guard-init DIR/numbers.json --out guards.json [--regions ...]
+  guard-check guards.json [--manuscript FILE ...] [--strict]
+      Guards keep audited numbers tied to their sources. guard-init writes one
+      entry per key number (display, anchor words, rounding); fill in source and
+      locator (JSON path, CSV cell, regex, const). guard-check recomputes each
+      value with decimal ROUND_HALF_UP rounding, looks for it near its anchor
+      with digit boundaries, and fails on mismatches and on 'stale' values that
+      were corrected and must not reappear. Exit code 1 on failure (use in CI or
+      a pre-commit hook).
+
   trace DIR/numbers.json --repo REPO [--regions R1,R2] [--exclude PATTERN ...]
       Searches data files, generated tables and scripts in REPO for values
       that round to each displayed number. Writes DIR/trace.md and trace.json.
@@ -679,6 +689,169 @@ def write_stats(rows: list[dict], out: str, main: str):
     print(f"{len(rows)} statistical results, {len(bad)} flagged -> {out}/stats.md")
 
 
+# ---------------------------------------------------------------------------
+# guards: keep audited numbers tied to their sources on every rerun
+# ---------------------------------------------------------------------------
+from decimal import Decimal, ROUND_HALF_UP  # noqa: E402
+
+KEY_REGIONS = ("title", "abstract", "introduction", "conclusion", "caption", "table", "theorem")
+
+
+def _raw_anchor(main_dir: str, file: str, line: int, raw: str) -> str:
+    path = os.path.join(main_dir, file.split(" ")[0]) if not file.endswith("¶") else None
+    if not path or not os.path.isfile(path):
+        return ""
+    lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    chunk = " ".join(lines[max(0, line - 3):line])
+    chunk = re.sub(r"(?<!\\)%[^\n]*", " ", chunk)
+    first = re.escape(raw.split("=")[-1].split()[0]) if raw else ""
+    m = None
+    for m in re.finditer(first, chunk):
+        pass
+    before = chunk[:m.start()] if m else chunk
+    before = re.sub(r"\\[A-Za-z]+|\$[^$]*\$", " ", before)
+    words = re.findall(r"[A-Za-z]{3,}", before)
+    return " ".join(words[-3:])
+
+
+def guard_init(numbers_json: str, out: str, regions: list[str] | None):
+    res = json.load(open(numbers_json, encoding="utf-8"))
+    main_dir = os.path.dirname(os.path.abspath(res["main"]))
+    want = regions or list(KEY_REGIONS)
+    entries = []
+    for it in res["items"]:
+        if it["kind"] in ("small", "year-like") or not any(it["region"].startswith(r) for r in want):
+            continue
+        display = it["raw"].split("=", 1)[1] if it["macro"] else it["raw"]
+        display = display.replace("{,}", ",").replace("\\%", "%")
+        num = re.search(r"\d[\d,]*(?:\.\d+)?", display)
+        decimals = len(num.group(0).split(".")[1]) if num and "." in num.group(0) else 0
+        entries.append({
+            "id": it["id"], "where": f"{it['file']}:{it['line']} ({it['region']})", "display": display,
+            "anchor": _raw_anchor(main_dir, it["file"], it["line"], it["raw"]) if not it["macro"] else "",
+            "macro": it["macro"], "source": None, "locator": None, "scale": 1, "decimals": decimals,
+            "thousands": bool(num and "," in num.group(0)), "suffix": "%" if display.endswith("%") else "",
+            "note": "", "context": it["context"][:160],
+        })
+    doc = {"manuscripts": res.get("mains", [res["main"]]),
+           "help": "Fill source + locator for each entry you want enforced. locator: JSON path 'a.b[0].c', "
+                   "CSV 'row=<col>:<value>;col=<name>' or 'row=<index>;col=<name>', regex 're:<pattern with one "
+                   "group>', or 'const:<value>'. Entries without a source are reported as UNSOURCED. Add corrected "
+                   "values that must never reappear to 'stale'. Do not guard wall-clock times.",
+           "stale": [], "entries": entries}
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    with open(out, "w", encoding="utf-8") as fh:
+        json.dump(doc, fh, ensure_ascii=False, indent=1)
+    print(f"{len(entries)} guard entries -> {out} (fill 'source' and 'locator', then run guard-check)")
+
+
+def _locate(source: str, locator: str, base: str):
+    if locator.startswith("const:"):
+        return float(locator[6:])
+    path = source if os.path.isabs(source) else os.path.join(base, source)
+    if locator.startswith("re:"):
+        m = re.search(locator[3:], open(path, encoding="utf-8", errors="replace").read(), re.M)
+        if not m:
+            raise ValueError("regex did not match")
+        return float(m.group(1).replace(",", ""))
+    if locator.startswith("row="):
+        import csv
+        parts = dict(p.split("=", 1) for p in locator.split(";"))
+        rows = list(csv.DictReader(open(path, encoding="utf-8", errors="replace")))
+        rk = parts["row"]
+        if ":" in rk:
+            kc, kv = rk.split(":", 1)
+            row = next(r for r in rows if str(r.get(kc)) == kv)
+        else:
+            row = rows[int(rk)]
+        return float(str(row[parts["col"]]).replace(",", ""))
+    obj = json.load(open(path, encoding="utf-8"))
+    for tok in re.findall(r"[^.\[\]]+", locator.lstrip("$.")):
+        obj = obj[int(tok)] if isinstance(obj, list) else obj[tok]
+    return float(obj)
+
+
+def _render(v: float, e: dict) -> str:
+    d = Decimal(str(v)) * Decimal(str(e.get("scale", 1)))
+    q = Decimal(1).scaleb(-int(e.get("decimals", 0)))
+    d = d.quantize(q, rounding=ROUND_HALF_UP)
+    txt = f"{d:,}" if e.get("thousands") else f"{d}"
+    return txt + e.get("suffix", "")
+
+
+def _num_rx(txt: str) -> str:
+    core = re.escape(txt).replace(",", "(?:,|\\{,\\})").replace("%", "\\\\?%")
+    return r"(?<![0-9.,])" + core + r"(?![0-9])"
+
+
+def guard_check(guards_json: str, manuscripts: list[str] | None, strict: bool) -> int:
+    g = json.load(open(guards_json, encoding="utf-8"))
+    base = os.path.dirname(os.path.abspath(guards_json))
+    mans = manuscripts or g.get("manuscripts", [])
+    text = ""
+    for m in mans:
+        mp = m if os.path.isabs(m) or os.path.exists(m) else os.path.join(base, m)
+        src, kind = load_document(mp)
+        t = src.text
+        if kind == "tex":
+            t = strip_comments_keep(t)
+        text += "\n" + t
+    norm = re.sub(r"\s+", " ", text.translate(PLAIN_TR))
+    counts = {"PASS": 0, "FAIL": 0, "ANCHOR_MISSING": 0, "UNSOURCED": 0, "SOURCE_ERROR": 0, "STALE_PRESENT": 0}
+    rows = []
+    for e in g.get("entries", []):
+        if not e.get("source") and not str(e.get("locator") or "").startswith("const:"):
+            counts["UNSOURCED"] += 1
+            continue
+        try:
+            expected = _render(_locate(e.get("source") or "", e["locator"], base), e)
+        except Exception as exc:  # report and continue
+            counts["SOURCE_ERROR"] += 1
+            rows.append(("SOURCE_ERROR", e, f"{type(exc).__name__}: {exc}"))
+            continue
+        if e.get("macro"):
+            # a macro value is checked in the macro definition file instead of the prose
+            hit = re.search(re.escape(e["macro"]) + r"\}?\s*\{(?:[^{}]*\{[^{}]*\})*[^{}]*?" + _num_rx(expected), norm)
+            status = "PASS" if hit else "FAIL"
+            rows.append((status, e, f"expected {expected} in the definition of {e['macro']}"))
+            counts[status] += 1
+            continue
+        words = [w for w in (e.get("anchor") or "").split() if w]
+        found_anchor = False
+        ok = False
+        for m in re.finditer(_num_rx(expected), norm):
+            window = norm[max(0, m.start() - 220):m.start()]
+            if all(w in window for w in words):
+                ok = True
+                break
+        if not ok and words:
+            arx = r"\W+(?:\S+\W+){0,3}?".join(re.escape(w) for w in words)
+            am = re.search(arx, norm)
+            found_anchor = bool(am)
+            nearby = ""
+            if am:
+                nm = re.search(r"(?<![0-9.])\d[\d,]*(?:\.\d+)?", norm[am.end():am.end() + 220])
+                nearby = nm.group(0) if nm else ""
+            status = "FAIL" if found_anchor else "ANCHOR_MISSING"
+            rows.append((status, e, f"expected {expected}" + (f", found {nearby} after the anchor" if nearby else "")))
+        elif not ok:
+            status = "FAIL"
+            rows.append((status, e, f"expected {expected} not found"))
+        else:
+            status = "PASS"
+        counts[status] += 1
+    for sv in g.get("stale", []):
+        rx = _num_rx(sv) if re.fullmatch(r"[\d.,%]+", sv) else re.escape(sv)
+        if re.search(rx, norm):
+            counts["STALE_PRESENT"] += 1
+            rows.append(("STALE_PRESENT", {"id": "-", "where": "-", "display": sv}, "a corrected value reappeared"))
+    print("guard-check: " + ", ".join(f"{k} {v}" for k, v in counts.items()))
+    for status, e, msg in rows:
+        print(f"  {status:14} {e.get('id')} {e.get('where')} [{e.get('display')}] {msg}")
+    bad = counts["FAIL"] + counts["SOURCE_ERROR"] + counts["STALE_PRESENT"] + (counts["ANCHOR_MISSING"] if strict else 0)
+    return 1 if bad else 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -693,11 +866,25 @@ def main(argv=None):
     t.add_argument("--exclude", nargs="*", default=[], help="glob patterns (relative paths or file names) to skip")
     t.add_argument("--max-mb", type=float, default=30)
     t.add_argument("--out")
+    gi = sub.add_parser("guard-init", help="create a guard file from numbers.json")
+    gi.add_argument("numbers_json")
+    gi.add_argument("--out", required=True)
+    gi.add_argument("--regions", help="comma list of region prefixes (default: title,abstract,introduction,"
+                                      "conclusion,caption,table,theorem)")
+    gc = sub.add_parser("guard-check", help="recompute guarded numbers from their sources and check the manuscript")
+    gc.add_argument("guards_json")
+    gc.add_argument("--manuscript", nargs="*")
+    gc.add_argument("--strict", action="store_true", help="also fail on ANCHOR_MISSING")
     st = sub.add_parser("stats")
     st.add_argument("main", nargs="+")
     st.add_argument("--out", required=True)
     st.add_argument("--alpha", type=float, default=0.05)
     args = ap.parse_args(argv)
+    if args.cmd == "guard-init":
+        guard_init(args.numbers_json, args.out, args.regions.split(",") if args.regions else None)
+        return
+    if args.cmd == "guard-check":
+        sys.exit(guard_check(args.guards_json, args.manuscript, args.strict))
     if args.cmd == "stats":
         rows = []
         for m in args.main:

@@ -1,6 +1,6 @@
 ---
 name: number-audit
-description: Audit every number in a paper before submission or preprint posting (any discipline; the manuscript can be LaTeX, Word, Markdown, or PDF). Recompute whether test statistics and p values agree, whether k/n matches percentages, and whether confidence intervals of ratio measures are internally consistent; inventory all numbers in the text; check whether the same symbol keeps the same value throughout and whether hand-copied numbers have drifted from data macros; trace key numbers in the abstract, introduction, tables, and figure captions to the data or script that produced them, and recompute them in a scratch copy; check parameter conventions of external tools against the tool's source code (e.g., the definition of an error norm); check whether figures and tables still use parameters the text has ruled out. Use when the user asks to check numbers, reproduce values, or verify that data and text agree, or before finalizing, submitting, or responding to reviewers. Not for checking mathematical proofs themselves.
+description: Audit every number in a paper before submission or preprint posting (any discipline; the manuscript can be LaTeX, Word, Markdown, or PDF). Recompute whether test statistics and p values agree, whether k/n matches percentages, and whether confidence intervals of ratio measures are internally consistent; inventory all numbers in the text; check whether the same symbol keeps the same value throughout and whether hand-copied numbers have drifted from data macros; trace key numbers in the abstract, introduction, tables, and figure captions to the data or script that produced them, and recompute them in a scratch copy; check parameter conventions of external tools against the tool's source code (e.g., the definition of an error norm); check whether figures and tables still use parameters the text has ruled out; then install guards that recompute key numbers from their sources on every build so they cannot drift again. Use when the user asks to check numbers, reproduce values, or verify that data and text agree, or before finalizing, submitting, or responding to reviewers. Not for checking mathematical proofs themselves.
 argument-hint: "[manuscript .tex/.docx/.md/.pdf ...] [--repo data and code directory] [--scope key|all]"
 ---
 
@@ -123,7 +123,33 @@ Go through the checklist in `references/conventions.md` item by item. Core steps
 - List as superseded-parameter any ruled-out parameter that still appears in a main figure or table as a "valid bound".
 - For values that depend on a conjecture or assumption, check whether the caption states this premise.
 
-## Phase 7: Report
+## Phase 7: Guards (keep the numbers from drifting again)
+
+An audit fixes the numbers once; a rerun, a new data version or an edit can break them again. Every project behind this library ended up building some "numbers come from data" mechanism; this phase builds one deliberately.
+
+1. **LaTeX manuscripts: generate macros from data.** Have the analysis write a file of macros (for example `generated/numbers.tex` with `\newcommand{\MainEffect}{0.47}`), input it in the preamble, and use the macros in the text. `extract` already reports hand-typed copies of macro values (`conflicts.md`).
+2. **Every format: a guard file checked on each build.**
+   ```
+   python3 <skill-dir>/scripts/number_audit.py guard-init number_audit/<date>/numbers.json --out guards.json
+   # fill "source" and "locator" for each entry you want enforced:
+   #   JSON path  "metrics.err"              CSV cell   "row=model:B;col=auc"  or  "row=3;col=auc"
+   #   regex      "re:Final loss: ([0-9.]+)" constant   "const:0.5"
+   #   "scale": 100 for percentages, "decimals" and "thousands" control the display
+   # list corrected values that must never reappear under "stale"
+   python3 <skill-dir>/scripts/number_audit.py guard-check guards.json     # exit code 1 on failure
+   ```
+   `guard-check` recomputes each value from its source with decimal ROUND_HALF_UP rounding, which avoids the inconsistent rounding of binary floats. It looks for the value near its anchor words, with digit boundaries on both sides, so "0.47" is not found inside "10.47". Each entry is reported as:
+   - `PASS`;
+   - `FAIL`, with the value actually found;
+   - `ANCHOR_MISSING`: the sentence was rewritten; update the anchor;
+   - `UNSOURCED`;
+   - `SOURCE_ERROR`;
+   - `STALE_PRESENT`: a corrected value reappeared.
+3. Wire `guard-check` into the build: a Makefile target, a pre-commit hook, or CI. Run it after the analysis and before the PDF is built. If the pipeline chains freshness checks, keep their order fixed.
+4. Do not guard wall-clock times or other values that change on every run. Report them as orders of magnitude.
+5. Guard numbers in figure titles and annotations by generating them from the same result files (see experiment-integrity, scan code P1).
+
+## Phase 8: Report
 
 Write `number_audit/<date>/report.md` (in the user's language), with conclusions first:
 
@@ -131,7 +157,8 @@ Write `number_audit/<date>/report.md` (in the user's language), with conclusions
 2. **Should fix**: hand-copied macro values, inconsistent rounding, values without a statement of their setting.
 3. **Confirmed**: the count, plus the full provenance table `ledger.md`.
 4. **Unverifiable**: list the reasons, e.g., needs a server, missing data, script does not run.
-5. Reproduction commands.
+5. Guards installed (Phase 7): how many entries are sourced, and how to run `guard-check`.
+6. Reproduction commands.
 
 Format of `ledger.md`:
 
@@ -146,3 +173,4 @@ Optional: also write a patch `fixes.patch`, or a location-by-location replacemen
 - How many key numbers are confirmed and how many are unverifiable.
 - Paths to the report and the provenance table.
 - Decisions the user needs to make, e.g., whether to allow recomputation on a server.
+- Whether guards are in place, and the command that runs them.

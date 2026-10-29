@@ -14,7 +14,11 @@ Subcommands
   search "query" [--db openalex|europepmc|arxiv|all] [--from Y] [--venue "A,B"] [--sort relevance|cited|date]
                                       OpenAlex (all fields), Europe PMC (PubMed, PMC,
                                       bioRxiv/medRxiv/preprints), or arXiv
-  recent "query" [--days 540] [--db all] newest items from arXiv + OpenAlex + Europe PMC
+  recent "query" [--days 540] [--db all] newest items from arXiv + OpenAlex + Europe PMC + Zenodo
+  watch --queries FILE --state FILE [--days 90] [--github] [--out FILE]
+                                      rerun saved queries across all sources and print
+                                      only items not seen before (for scouting a
+                                      direction before and while investing in it)
 
 Queries use OpenAlex full-text search. Quote phrases and join with AND for
 precision: '"phase folding" AND "T-count"'. Bare words are joined with AND.
@@ -142,6 +146,11 @@ def cmd_search(args):
                  "first_author": r["first_author"], "title": r["title"]} for r in sch.arxiv_search(args.query, n=args.n)]
         emit(args, rows, f"[arXiv] {args.query}")
         return
+    if args.db == "zenodo":
+        rows = sch.zenodo_search(_q(args.query), n=args.n, sort="date" if args.sort == "date" else "bestmatch",
+                                 since=f"{args.year_from}-01-01" if args.year_from else None)
+        emit(args, rows, f"[Zenodo] {args.query}")
+        return
     filters = []
     if args.venue:
         v = sch.resolve_venues(args.venue)
@@ -170,6 +179,11 @@ def cmd_recent(args):
         if args.db == "europepmc":
             emit(args, rows, f"{args.query} (since {since}, Europe PMC incl. bioRxiv/medRxiv)")
             return
+    if args.db in ("zenodo", "all"):
+        rows += sch.zenodo_search(_q(args.query), n=args.n, sort="date", since=since)
+        if args.db == "zenodo":
+            emit(args, rows, f"{args.query} (since {since}, Zenodo)")
+            return
     oa = sch.openalex_list([f"from_publication_date:{since}"], search=_q(args.query),
                            sort="relevance_score:desc", n=args.n)
     seen = {r["arxiv"] for r in rows if r["arxiv"]}
@@ -179,6 +193,74 @@ def cmd_recent(args):
             continue
         rows.append(r)
     emit(args, rows, f"{args.query} (since {since})")
+
+
+def _row_key(r: dict) -> str:
+    doi = (r.get("doi") or "").lower()
+    m = re.match(r"10\.48550/arxiv\.(.+)$", doi)
+    if r.get("arxiv") or m:
+        return "arxiv:" + (r.get("arxiv") or m.group(1))
+    return doi or \
+        (r.get("pmid") and "pmid:" + str(r["pmid"])) or (r.get("id") and "id:" + str(r["id"])) or \
+        "title:" + sch.norm_title(r.get("title", ""))
+
+
+def _github_repos(query: str, n: int) -> list[dict]:
+    import shutil
+    import subprocess
+    if not shutil.which("gh"):
+        return []
+    try:
+        out = subprocess.run(["gh", "search", "repos", query, "--sort", "updated", "--limit", str(n), "--json",
+                              "fullName,updatedAt,description,url"], capture_output=True, text=True, timeout=60).stdout
+        return [{"id": "gh:" + r["fullName"], "year": r["updatedAt"][:4], "date": r["updatedAt"][:10], "cited_by": "",
+                 "venue": "GitHub", "doi": "", "arxiv": "", "first_author": r["fullName"].split("/")[0],
+                 "title": f"{r['fullName']}: {(r.get('description') or '')[:100]}"} for r in json.loads(out or "[]")]
+    except (subprocess.SubprocessError, ValueError):
+        return []
+
+
+def cmd_watch(args):
+    """Rerun saved queries and print only items not seen in earlier runs."""
+    queries = [l.split("#", 1)[0].strip() for l in open(args.queries, encoding="utf-8")]
+    queries = [q for q in queries if q]
+    state = json.load(open(args.state, encoding="utf-8")) if os.path.exists(args.state) else {"seen": {}, "runs": []}
+    since = (dt.date.today() - dt.timedelta(days=args.days)).isoformat()
+    new_rows = []
+    for q in queries:
+        rows = []
+        rows += [{"year": r["date"][:4], "date": r["date"], "venue": r["journal_ref"] or "arXiv", "doi": "",
+                  "arxiv": r["arxiv"], "first_author": r["first_author"], "title": r["title"]}
+                 for r in sch.arxiv_search(q, n=args.n) if r["date"] >= since]
+        rows += [sch.work_row(x) for x in sch.openalex_list([f"from_publication_date:{since}"], search=_q(q),
+                                                            sort="publication_date:desc", n=args.n)]
+        rows += [sch.europepmc_row(x) for x in sch.europepmc_search(
+            _epmc_query(q) + f" AND FIRST_PDATE:[{since} TO 3000-01-01]", n=args.n)]
+        rows += sch.zenodo_search(_q(q), n=args.n, sort="date", since=since)
+        if args.github:
+            rows += _github_repos(q.replace('"', ""), min(args.n, 20))
+        seen_q = set(state["seen"].get(q, []))
+        fresh = []
+        for r in rows:
+            k = _row_key(r)
+            if k and k not in seen_q:
+                seen_q.add(k)
+                r["query"] = q
+                fresh.append(r)
+        state["seen"][q] = sorted(seen_q)
+        new_rows += fresh
+    first_run = not state["runs"]
+    state["runs"].append({"date": dt.date.today().isoformat(), "new": len(new_rows)})
+    json.dump(state, open(args.state, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    label = "baseline (first run: everything is new)" if first_run else "new since the last run"
+    print(f"# Watch: {len(queries)} queries, {len(new_rows)} items {label}\n")
+    if new_rows:
+        print(table(new_rows, cols=("date", "venue", "doi", "arxiv", "first_author", "title", "query")))
+    if args.out:
+        with open(args.out, "a", encoding="utf-8") as fh:
+            fh.write(f"\n## watch {dt.date.today().isoformat()}: {len(new_rows)} {label}\n\n")
+            if new_rows:
+                fh.write(table(new_rows, cols=("date", "venue", "doi", "arxiv", "first_author", "title", "query")) + "\n")
 
 
 def main(argv=None):
@@ -204,8 +286,9 @@ def main(argv=None):
     p.set_defaults(func=cmd_citing)
     p = sub.add_parser("search", parents=[common])
     p.add_argument("query")
-    p.add_argument("--db", choices=["openalex", "europepmc", "arxiv", "all"], default="openalex",
-                   help="openalex: all fields; europepmc: PubMed, PMC, bioRxiv/medRxiv; arxiv: physics/CS/math")
+    p.add_argument("--db", choices=["openalex", "europepmc", "arxiv", "zenodo", "all"], default="openalex",
+                   help="openalex: all fields; europepmc: PubMed, PMC, bioRxiv/medRxiv; arxiv: physics/CS/math; "
+                        "zenodo: code, data, reports, reproductions")
     p.add_argument("--from", dest="year_from", type=int)
     p.add_argument("--venue")
     p.add_argument("--sort", choices=["relevance", "cited", "date"], default="relevance")
@@ -213,11 +296,19 @@ def main(argv=None):
     p.set_defaults(func=cmd_search)
     p = sub.add_parser("recent", parents=[common])
     p.add_argument("query")
-    p.add_argument("--db", choices=["openalex", "europepmc", "arxiv", "all"], default="all",
-                   help="all = arXiv + OpenAlex + Europe PMC")
+    p.add_argument("--db", choices=["openalex", "europepmc", "arxiv", "zenodo", "all"], default="all",
+                   help="all = arXiv + OpenAlex + Europe PMC + Zenodo")
     p.add_argument("--days", type=int, default=540)
     p.add_argument("-n", type=int, default=25)
     p.set_defaults(func=cmd_recent)
+    p = sub.add_parser("watch")
+    p.add_argument("--queries", required=True, help="text file, one query per line ('#' comments)")
+    p.add_argument("--state", required=True, help="JSON file remembering what was already seen")
+    p.add_argument("--days", type=int, default=90)
+    p.add_argument("-n", type=int, default=25)
+    p.add_argument("--github", action="store_true", help="also search GitHub repositories (needs the gh CLI)")
+    p.add_argument("--out", help="append new items to this markdown file")
+    p.set_defaults(func=cmd_watch)
     args = ap.parse_args(argv)
     args.func(args)
 

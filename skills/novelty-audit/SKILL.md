@@ -1,7 +1,7 @@
 ---
 name: novelty-audit
-description: Audit the novelty of a paper with falsification as the goal — decompose each contribution into result, technique, and model, and translate it into the terms of neighboring communities (e.g. compiler lower bound → multi-pass streaming algorithms / communication complexity / advice complexity; a "new model" for the area under the blood-glucose curve → the trapezoidal rule of numerical integration; spatial interpolation → Gaussian process regression), applicable across disciplines; then search in four directions (forward citations, backward citations, keywords, and recent preprints) for possibly existing results, proofs that are standard techniques, and concurrent work; after reading each paper, give a novelty verdict for each contribution, the references that must be added, and suggested wording. Use when preparing a submission, before writing "first / novel / to our knowledge", when a reviewer questions novelty, or when the user asks "is this result new?". Not for polishing prose (paper-polish) or checking existing citations (cite-verify).
-argument-hint: "[manuscript .tex/.docx/.md/.pdf or one-sentence description of the result] [--claims C1,C2]"
+description: Audit the novelty of a paper with falsification as the goal — decompose each contribution into result, technique, and model, and translate it into the terms of neighboring communities (e.g. compiler lower bound → multi-pass streaming algorithms / communication complexity / advice complexity; a "new model" for the area under the blood-glucose curve → the trapezoidal rule of numerical integration; spatial interpolation → Gaussian process regression), applicable across disciplines; then search in four directions (forward citations, backward citations, keywords, and recent preprints) for possibly existing results, proofs that are standard techniques, and concurrent work; after reading each paper, give a novelty verdict for each contribution, the references that must be added, and suggested wording. Use when preparing a submission, before writing "first / novel / to our knowledge", when a reviewer questions novelty, or when the user asks "is this result new?". In scout mode, also use before starting a project, a reproduction or a long computation, to check whether the idea is already done or in progress elsewhere (including code and data deposits on Zenodo and GitHub), and to keep a watch list of new items. Not for polishing prose (paper-polish) or checking existing citations (cite-verify).
+argument-hint: "[manuscript or result description | idea for --mode scout] [--mode audit|scout] [--claims C1,C2]"
 ---
 
 # novelty-audit: first try to prove "this is not new"
@@ -28,6 +28,38 @@ A classic cross-disciplinary example: Tai (Diabetes Care 17(2):152–154, 1994) 
 4. **Diagnose only; do not edit the manuscript.** Write outputs to `novelty/<YYYY-MM-DD>/` (inside a git repository, add it to `.git/info/exclude`). Hand wording suggestions over to paper-polish or the author.
 5. Verify the metadata of cited references; you can directly use cite-verify's `refcheck.py` or paper-polish's `exemplar_meta.py fetch`.
 6. Talk to the user and write reports in the user's language; write suggested manuscript wording in English.
+
+## Modes
+
+| Mode | Input | When | Phases |
+|---|---|---|---|
+| `audit` (default) | a manuscript, or a description of finished results | before submission; before writing "first" or "novel"; when a reviewer questions novelty | 0–4 |
+| `scout` | a research idea or planned direction, before or while investing in it | before starting a project, a reproduction, or a long computation; periodically while it runs | S1–S4 below, then the watch list |
+
+Being pre-empted after the investment is the expensive failure. In the observed case, a direction was pre-empted by a preprint from a large lab. Then, one day after an independent reproduction of that result was started, someone else deposited an independent reproduction on Zenodo. A scout run plus a watch list would have surfaced both earlier.
+
+### Scout mode
+
+- **S1. State the idea as contributions.** Write 1–4 planned results as contribution cards (Phase 1 template), including the planned method and the intended deliverable (theorem, dataset, tool, reproduction).
+- **S2. Search as in Phase 2,** with two additions:
+  - `recent` with `--days 365` across all sources, including Zenodo;
+  - code and data repositories: Zenodo, and GitHub via `gh search repos`.
+
+  Also check registries for planned work (trial registries, OSF preregistrations, PROSPERO), and recent talks and announcements (WebSearch: workshop programs, lab news, release notes of large labs).
+- **S3. Verdict per planned result:**
+  - done (with evidence);
+  - in progress elsewhere (with evidence);
+  - open.
+
+  For open items, state what would differentiate the planned work: an independent method, a stronger or certified result, a different setting, or a tool or dataset that others lack. For done items, state what value remains, such as an independent second proof, an exact classification or a verified checker.
+- **S4. Watch list.** Save the queries and rerun them periodically. `watch` prints only items not seen in earlier runs:
+  ```
+  python3 -I <skill-dir>/scripts/lit_graph.py watch --queries novelty/watch_queries.txt \
+      --state novelty/watch_state.json --days 90 --github --out novelty/watch_log.md
+  ```
+  The first run sets the baseline. Suggest a rerun interval to the user (for example weekly for a fast-moving topic). Never set up scheduled jobs without asking.
+
+The scout report gives the verdicts, the differentiation options, the watch-list path and the search log. Whether to start, continue, or redirect the work is the user's decision.
 
 ## Phase 0: Intake
 
@@ -64,8 +96,11 @@ $L search '"pass elimination" AND streaming' --log $LOG --out novelty/<date>/hit
 $L citing <DOI of the classic paper> --match '"lower bound" AND pass' --sort cited --log $LOG --out novelty/<date>/hits.md
 # C Backward: what the nearest-neighbor papers cite
 $L refs <nearest-neighbor DOI or arXiv> --log $LOG --out novelty/<date>/hits.md
-# D Concurrent work (last 18 months; by default queries arXiv, OpenAlex, and Europe PMC together, the last of which includes bioRxiv and medRxiv)
+# D Concurrent work (last 18 months; by default queries arXiv, OpenAlex, Europe PMC (incl. bioRxiv and medRxiv)
+#   and Zenodo (code, data, reports, independent reproductions) together)
 $L recent '"phase folding" AND "T-count"' --days 540 --log $LOG --out novelty/<date>/hits.md
+# Zenodo alone: deposits of code, data and reproductions often appear there before any paper
+$L search '"single-cell" AND "foundation model"' --db zenodo --sort date --log $LOG --out novelty/<date>/hits.md
 # Biomedicine / life sciences: PubMed, PMC, and preprints
 $L search '"gut microbiome" AND "social network"' --db europepmc --log $LOG --out novelty/<date>/hits.md
 ```
@@ -74,6 +109,7 @@ Then supplement by field (full list in Section 3 of `references/search-playbook.
 - WebSearch, and Google Scholar–style phrase searches;
 - recent tables of contents of the field's main conferences or journals;
 - preprint servers: arXiv, bioRxiv, medRxiv, SSRN, ChemRxiv, OSF;
+- code and data: Zenodo (`--db zenodo`), GitHub (`gh search repos "<query>" --sort updated`), Software Heritage;
 - registries: ClinicalTrials.gov for ongoing trials, PROSPERO for systematic review protocols, OSF Registries for preregistered studies;
 - expert Q&A communities: MathOverflow, Cross Validated, etc.
 

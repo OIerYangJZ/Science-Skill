@@ -596,3 +596,29 @@ def europepmc_sections(pmcid: str) -> dict:
     if intro is not None:
         out["introduction"] = "\n\n".join(re.sub(r"\s+", " ", text_of(p)).strip() for p in intro.iter("p"))
     return out
+
+
+# ---------------------------------------------------------------------------
+# Zenodo: code, data, reports and independent reproductions often appear here first
+# ---------------------------------------------------------------------------
+def zenodo_search(query: str, n: int = 25, sort: str = "bestmatch", since: str | None = None) -> list[dict]:
+    q = query if not since else f"({query}) AND publication_date:[{since} TO *]"
+    params = {"q": q, "size": min(n, 100), "sort": "mostrecent" if sort == "date" else "bestmatch"}
+    txt = http_get("https://zenodo.org/api/records?" + urllib.parse.urlencode(params))
+    if not txt:
+        return []
+    try:
+        hits = json.loads(txt)["hits"]["hits"]
+    except (ValueError, KeyError):
+        return []
+    out = []
+    for h in hits:
+        m = h.get("metadata", {})
+        creators = m.get("creators") or []
+        out.append({"id": str(h.get("id", "")), "year": (m.get("publication_date") or "")[:4],
+                    "date": m.get("publication_date", ""), "cited_by": "",
+                    "venue": "Zenodo (" + ((m.get("resource_type") or {}).get("type") or "record") + ")",
+                    "doi": h.get("doi") or m.get("doi", ""), "arxiv": "",
+                    "first_author": creators[0].get("name", "") if creators else "",
+                    "title": m.get("title", ""), "retracted": False})
+    return out
