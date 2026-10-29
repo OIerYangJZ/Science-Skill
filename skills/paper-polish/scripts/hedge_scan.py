@@ -248,7 +248,8 @@ def measure(name: str, cleaned: str, stats: dict, src: Source | None, base_line:
         # "While X costs more, we prove Y" puts the cost in a subordinate clause
         # and the result in the main clause: that is the good pattern.
         if m and not (RESULT_VERBS.search(cleaned[a:b]) or UNIVERSAL_CLAIM.search(cleaned[a:b])):
-            add_hit("D2", a + m.start(), a + m.end())
+            lead = len(m.group(0)) - len(m.group(0).lstrip())  # report the line of the word, not of the whitespace
+            add_hit("D2", a + m.start() + lead, a + m.end())
 
     counts: dict[str, int] = {}
     for h in hits:
