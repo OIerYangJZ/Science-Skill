@@ -39,6 +39,17 @@ flowchart LR
 | Computer-assisted part | Every solver constraint traced to the text. The second solver checked the same formula, so it verified the arithmetic only. A grid refutation scan was not run (blocked by permissions). |
 | Scripts alone | No statistics to check (a theory paper). The proof map gave the leads above. The reference check was where most of the library fixes came from (below). |
 
+## Reports computed from the ledgers
+
+After this run, the audit skills compute their conclusions from findings ledgers (`lib/findings.py`). Applied to this run's ledgers:
+
+| Ledger | Rows | Computed result |
+|---|---|---|
+| proof-audit `verdicts.md` | 19 | 3 VERIFIED, 8 VERIFIED WITH FIXES, 3 CONDITIONAL, 4 GAP (all verified by the main session), 1 NOT CHECKED; overall GAP; final; exit code 1 |
+| mock-review `verification.md` | 13 | 8 CONFIRMED, 4 PARTIALLY CONFIRMED, 1 REFUTED; final; exit code 1 |
+
+The computed proof-audit result is stricter than the first hand-written summary. That summary had called one theorem "verified with fixes" because its missing step was small, but the ledger records a missing step as GAP. Removing that kind of drift is the point of computing the conclusion.
+
 ## What the run changed in the library
 
 | Gap found | Fix |

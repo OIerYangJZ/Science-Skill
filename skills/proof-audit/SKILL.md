@@ -114,7 +114,14 @@ For every computation a proof relies on (SMT or LP solvers, enumerations, certif
 
 ## Phase 8: Report
 
-Write `proof_audit/<date>/report.md` in the user's language, conclusions first:
+**The conclusion is computed, not written.** First fill the verdict ledger `proof_audit/<date>/verdicts.md`: one row per audited result or claim, with the columns `| id | item | location | verdict | evidence | verified |`. Verdicts are VERIFIED, VERIFIED WITH FIXES, CONDITIONAL(<what>), GAP, INVALID or NOT CHECKED, and `verified` is `yes` only for rows the main session re-checked. Then run:
+
+```
+python3 <skill-dir>/scripts/audit_report.py proof_audit/<date>/verdicts.md --out proof_audit/<date>/report.md \
+    --lang <en|zh> --manuscript main.tex supplement.tex --version "<git commit>"
+```
+
+The script writes the header (date, version, file hashes), the counts, the overall verdict and the conclusion sentence, and groups the rows. A GAP or INVALID that is not verified makes the report NOT FINAL (exit code 2); confirmed GAP or INVALID give exit code 1; otherwise 0. Never state a conclusion that the computed report does not state. Append the narrative sections below the computed part, in the user's language, conclusions first:
 1. **Per audited result.** Status (VERIFIED, VERIFIED WITH FIXES, GAP, INVALID, or CONDITIONAL on …), open obligations, conditional dependencies, and the proposed fixes or missing lemmas.
 2. **Confirmed issues**, ordered by severity, each with the location, the evidence, the innocent explanations ruled out, and the minimal fix.
 3. **Scope and statement mismatches** between the theorems and the abstract and introduction.
@@ -126,6 +133,7 @@ When the audit is done for a research ledger (`dead-end-ledger`), record each ve
 
 ## Final report to the user (concise, in the user's language)
 
+- The conclusion sentence of the computed report, verbatim, and whether it is final.
 - For each audited result, the status in one line.
 - The confirmed gaps and errors, one sentence each, with the minimal fix.
 - Conditional dependencies that the abstract or introduction does not state.

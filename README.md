@@ -308,6 +308,22 @@ The scripts depend on the shared `lib/` directory, so do not copy a single skill
 4. **Outputs go to a dated working directory** next to the manuscript, added to `.git/info/exclude` in a git repository. Mock-review packs live outside the repository.
 5. **Every run ends with a short report** in your language: conclusions, file paths, decisions needed, and what could not be checked.
 
+**Audit conclusions are computed, not written.** `proof-audit`, `mock-review`, `experiment-integrity` and `number-audit` end with a findings ledger, a Markdown table with the columns `id | item | location | verdict | evidence | verified`. A report script turns the ledger into the report:
+- it records the date, the version and the SHA-256 of the manuscript files;
+- it counts the verdicts, derives the overall verdict and writes the conclusion sentence;
+- it groups the rows into confirmed severe findings, findings needing attention, items not checked, and passed items.
+
+A severe verdict (INVALID or GAP, a confirmed review error, a confirmed integrity finding, a number mismatch) counts only if the main session verified it (`verified = yes`). Otherwise the report is marked **NOT FINAL**. A verdict outside the skill's vocabulary has the same effect. The skill may not state a conclusion that the computed report does not state.
+
+| Report script | Ledger | Verdicts |
+|---|---|---|
+| `proof-audit/scripts/audit_report.py` | `verdicts.md` | VERIFIED, VERIFIED WITH FIXES, CONDITIONAL(…), GAP, INVALID, NOT CHECKED |
+| `mock-review/scripts/review_report.py` (`--pin PIN.json`) | `verification.md` | CONFIRMED, PARTIALLY CONFIRMED, REFUTED, NOT CHECKED |
+| `experiment-integrity/scripts/integrity_report.py` | `findings.md` (plus a `tier` column: T, S or R) | CONFIRMED, POSSIBLE, REFUTED, NOT CHECKED |
+| `number-audit/scripts/numbers_report.py` | `ledger.md` | CONFIRMED, MISMATCH, STATS-INCONSISTENT, CONVENTION-ISSUE, SUPERSEDED-PARAMETER, ORPHAN, UNVERIFIABLE |
+
+Every report script takes `--lang en|zh` and exits with 0 when there is no confirmed severe finding, 1 when there are confirmed severe findings, and 2 when the report is not final.
+
 | Skill | Working directory | Original files changed? |
 |---|---|---|
 | paper-polish | `polish/<date>/` | No; new text goes to new files |
@@ -473,6 +489,7 @@ python3 $N stats survey.docx --out number_audit/today --bounds 1,7 --items 4   #
 python3 $N trace number_audit/today/numbers.json --repo . --regions abstract,introduction,caption,table
 python3 $N guard-init number_audit/today/numbers.json --out guards.json  # then fill "source" and "locator"
 python3 $N guard-check guards.json                                        # exit code 1 on failure
+python3 skills/number-audit/scripts/numbers_report.py number_audit/today/ledger.md --out number_audit/today/summary.md
 ```
 
 <details>
@@ -546,12 +563,13 @@ Put it in a Makefile, a pre-commit hook or CI, after the analysis and before the
 6. **Guards:** assertions, tests and number guards, so that a rerun cannot reintroduce the problem; every call site is fixed.
 7. **Report.** A finding is "confirmed" only after the innocent explanations are ruled out, and they are listed. Each finding states what could be observed: **T** (text only), **S** (source read) or **R** (rerun).
 
-**Outputs** (`integrity/<date>/`): `design_ledger.md`, `integrity_scan.md` / `.json`, `impact.md`, `report.md`, proposed patches.
+**Outputs** (`integrity/<date>/`): `design_ledger.md`, `integrity_scan.md` / `.json`, `impact.md`, `findings.md` (the ledger), `report.md` (computed from it), proposed patches.
 
 **Script**
 
 ```bash
 python3 skills/experiment-integrity/scripts/integrity_scan.py ./analysis --out integrity/today
+python3 skills/experiment-integrity/scripts/integrity_report.py integrity/today/findings.md --out integrity/today/report.md
 ```
 
 <details>
@@ -609,15 +627,32 @@ Python gets an AST-based scan; R, Julia, MATLAB and shell get a regex scan. Ever
 7. **Computer-assisted parts:** every constraint fed to a solver traced to a lemma; an independent second encoding or an exact certificate (a second solver on the same formula checks only the arithmetic); sanity queries; a reproducibility record. **It asks before long computations.**
 8. **Effectivity and constants**, then the **report**: a status per result (VERIFIED, VERIFIED WITH FIXES, GAP, INVALID, CONDITIONAL on …), the minimal fixes, and what was not checked.
 
-**Outputs** (`proof_audit/<date>/`): `proof_map.md` / `.json`, `obligation_ledger.md`, `assumption_ledger.md`, `notation.md`, `report.md`.
+**Outputs** (`proof_audit/<date>/`): `proof_map.md` / `.json`, `obligation_ledger.md`, `assumption_ledger.md`, `notation.md`, `verdicts.md` (the ledger), `report.md` (computed from it, then the narrative).
 
 **Script**
 
 ```bash
 python3 skills/proof-audit/scripts/proof_map.py main.tex supplement.tex --out proof_audit/today
+python3 skills/proof-audit/scripts/audit_report.py proof_audit/today/verdicts.md --out proof_audit/today/report.md \
+        --manuscript main.tex supplement.tex --version "$(git rev-parse --short HEAD)"
 ```
 
 The map follows `\ref`, `\cref`, `\eqref` and `\autoref`; recognizes proofs placed elsewhere ("Proof of Theorem~\ref{…}", "Proof of …" sections, inline "Proof." paragraphs); and follows `\externaldocument` labels. It reports dependency trees, cycles, results without proofs, conditional chains, undefined labels, unused lemmas, gap phrases, constant and effectivity leads, and macros redefined with different bodies. It cannot see references typed by hand ("Theorem 3"), and a mention in prose can create a false cycle, so every edge carries its location for checking.
+
+<details>
+<summary><b>From a real run</b> (the author's own theory manuscript; process only)</summary>
+
+- **Map.** `proof_map.py` mapped about 65 theorem-like results, with 6 cycles and 7 conditional chains. Checked edge by edge, every one was a prose pointer or a comparison, not a real dependency. So the results that the abstract calls unconditional are unconditional in that respect.
+- **Step checks.** Seven step-check subagents, one per appendix group, plus one auditor of the solver certificate, all at effort `high`. They read only their proofs and the statements they cite; earlier reviews and notes were excluded.
+- **Re-check.** The main session re-checked every GAP. The ledger had 19 rows, and `audit_report.py` computed: 3 VERIFIED, 8 VERIFIED WITH FIXES, 3 CONDITIONAL, 4 GAP (all verified), 1 NOT CHECKED, **no INVALID**.
+- **What the GAPs were.** All of them can be closed without changing a statement. In one main theorem, a core inequality was checked only by the solver, and a constant and part of the solver formula were never written down. A sharpness claim was worded more strongly than the solver run supports.
+- **Lessons.**
+  - Effort is fixed at launch, so the step checks were restarted at `high` to save quota. Pausing with TaskStop and resuming with SendMessage kept their progress.
+  - Three checks were blocked by the permission system and are reported as "not checked".
+
+Details: [`examples/README.md`](examples/README.md).
+
+</details>
 
 ### cite-verify
 
@@ -661,6 +696,19 @@ python3 -I $R contexts manuscript.docx --out refcheck/today       # citing sente
 **Tips**
 - Books, theses, software and archives are often not indexed; such entries need a manual look.
 - Superscript citation numbers in Word are lost in text conversion and are not detected.
+
+<details>
+<summary><b>From a real run</b> (a REVTeX manuscript with a 57-entry <code>thebibliography</code>)</summary>
+
+The first `check-list` run flagged 29 of the 57 references, almost all falsely. There were four causes:
+- `\href{https://doi.org/…}{Title}` glued the URL to the title, so the DOI was misread;
+- math in titles (`$z$-rotations`) and MathML in Crossref titles defeated title matching;
+- ø, ł and LaTeX accents in author names did not match;
+- a "See Supplemental Material" note was checked as a reference.
+
+After the fixes, 2 references were flagged: real papers that the search did not find, which is "not found", not "fabricated". Details: [`examples/README.md`](examples/README.md).
+
+</details>
 
 ### novelty-audit
 
@@ -797,7 +845,7 @@ python3 -I $V factsheet "PRX Quantum" "Quantum" --out venue/today/factsheets.md
 
 **Cross-model reviewer (optional).** Reviewers from one model family share blind spots. If you have another model available, one role can run there with the same pack and prompt. Sending an unpublished manuscript to another provider shares it with that provider, so the skill asks you first, every time.
 
-**Outputs** (outside the repository, `~/mock_review/<name>-<date>/`): `pack/`, `work-<role>/`, `reports/`, `verification.md`, `joint_report.md` or `quick_report.md`, `PIN.json`, `MANIFEST.md`.
+**Outputs** (outside the repository, `~/mock_review/<name>-<date>/`): `pack/`, `work-<role>/`, `reports/`, `verification.md` (the ledger), `verified_issues.md` (computed from it), `joint_report.md` or `quick_report.md`, `PIN.json`, `MANIFEST.md`.
 
 **Script**
 
@@ -805,7 +853,23 @@ python3 -I $V factsheet "PRX Quantum" "Quantum" --out venue/today/factsheets.md
 P=skills/mock-review/scripts/review_pack.py
 python3 $P pack --repo . --out ~/mock_review/paper-2026-10-29 --roles math,domain,stats --exclude "notes/*"
 python3 $P check-pin ~/mock_review/paper-2026-10-29/PIN.json      # exit code 1 if the manuscript changed
+python3 skills/mock-review/scripts/review_report.py ~/mock_review/paper-2026-10-29/verification.md \
+        --out ~/mock_review/paper-2026-10-29/verified_issues.md --pin ~/mock_review/paper-2026-10-29/PIN.json
 ```
+
+<details>
+<summary><b>From a real run</b> (the author's own theory manuscript; process only)</summary>
+
+- **Pack and pin.** `review_pack.py` flagged 15 copied files whose names looked like notes, among them earlier reviews of this very manuscript. They were excluded and the manuscript was repacked.
+- **Criteria.** The venue's criteria pages refused automated fetching (HTTP 403), so the criteria came from search snippets marked "confirm on site".
+- **Attack and defence.** The attacker wrote three kill arguments in about 12 minutes; its list of files read showed it stayed inside the pack. The defender split them into 13 sub-claims: 6 standing (most already disclosed in the paper), 4 fixable by rewriting, 1 rebutted, 2 partly rebutted.
+- **Verification and report.** The main session checked every quotation and number and recorded 13 rows in `verification.md`. `review_report.py` computed: 8 CONFIRMED, 4 PARTIALLY CONFIRMED, 1 REFUTED, final.
+- **The decisive objection** concerned significance and framing, not mathematics.
+- **Lesson.** The defender installed a solver package on its own to reproduce a certificate. Since then, the prompts forbid installing software.
+
+Details: [`examples/README.md`](examples/README.md).
+
+</details>
 
 ### dead-end-ledger
 
@@ -906,7 +970,7 @@ flowchart LR
 | Before a result counts | `experiment-integrity` on the code; `proof-audit` for theoretical claims; `number-audit` guards on reported values | Results produced by the pipeline's own bugs, sentinels, leakage or unchecked proof steps |
 | Writing and review | `paper-polish`, `cite-verify`; `mock-review --quick` per iteration, a full `mock-review` before submission | Defensive or inflated drafts; unverified review claims |
 
-**Machine-checkable gates** (non-zero exit code on failure): `number_audit.py guard-check`, `ledger.py lint`, `ledger.py graph`, `review_pack.py check-pin`. The other scripts produce leads that an agent or a person must read; `refcheck.py` writes `results.json` with ERROR and WARN issues per entry. The consent rules still apply inside a pipeline: long or paid runs, and anything sent to an outside service, need the user's approval.
+**Machine-checkable gates** (non-zero exit code on failure): `number_audit.py guard-check`, `ledger.py lint`, `ledger.py graph`, `review_pack.py check-pin`, and the four report scripts (`audit_report.py`, `review_report.py`, `integrity_report.py`, `numbers_report.py`: 1 for confirmed severe findings, 2 for a report that is not final). The other scripts produce leads that an agent or a person must read; `refcheck.py` writes `results.json` with ERROR and WARN issues per entry. The consent rules still apply inside a pipeline: long or paid runs, and anything sent to an outside service, need the user's approval.
 
 ## Command-line tools
 
@@ -920,6 +984,7 @@ flowchart LR
 | `cite-verify/scripts/refcheck.py` | `check`, `check-list`, `contexts` | BibTeX and RIS verification; free-text reference lists; citing sentences per reference |
 | `novelty-audit/scripts/lit_graph.py` | `resolve`, `search`, `citing`, `refs`, `recent`, `watch` | Searches over OpenAlex, arXiv, Europe PMC and Zenodo; citation graph from a DOI, arXiv ID or PMID; watch lists |
 | `venue-fit/scripts/venue_fit.py` | `neighbors`, `profile`, `factsheet` | Where similar work is published; venue profiles; fact-sheet templates |
+| `proof-audit/scripts/audit_report.py`, `mock-review/scripts/review_report.py`, `experiment-integrity/scripts/integrity_report.py`, `number-audit/scripts/numbers_report.py` | ledger; `--out`, `--lang`, `--manuscript`, `--version` (`--pin` for reviews) | Reports computed from findings ledgers; exit 0 / 1 / 2 |
 | `mock-review/scripts/review_pack.py` | `pack`, `check-pin` | Isolated, pinned review packs; detection of manuscript changes |
 | `dead-end-ledger/scripts/ledger.py` | `init`, `search`, `card`, `graph`, `lint`, `status` | Ledger creation, duplicate search, idea cards, dependency graph, checks |
 

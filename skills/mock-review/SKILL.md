@@ -37,7 +37,7 @@ The author's own practice in Case B serves as a model (see paper-polish's `refer
   2. **Attack.** One fresh subagent, isolated as in rule 1, writes the strongest rejection memo it can, at most 200 words and at most 3 kill arguments, each with a location and evidence (prompt in Section 6.1 of `references/templates.md`).
   3. **Defend.** Another fresh subagent, which sees the memo and the recomputations the attacker listed but none of its other reasoning, answers each argument with REBUTTED (quoting the paper), FIXABLE (with the minimal change) or STANDS (Section 6.2).
   4. **Verify.** The main session checks every argument that was not cleanly rebutted, and every rebuttal it doubts, as in Phase 5, including the innocent explanations.
-  5. **Report.** Write `quick_report.md` (Section 6.3): each kill argument, the defense, the verification, the status, and the next step. A rebutted argument still means the answer is not visible enough to a referee.
+  5. **Report.** Record each kill argument, and each sub-claim when an argument bundles several, as a row of `verification.md` (Phase 5 format), compute `verified_issues.md` with `review_report.py`, then write `quick_report.md` (Section 6.3) on top of it: each kill argument, the defense, the verification, the status, and the next step. The status column must agree with the computed report. A rebutted argument still means the answer is not visible enough to a referee.
 
   Quick mode does not replace a full review: it looks for reasons to reject, not for every problem. A run on a real manuscript is summarized in `examples/README.md` at the repository root.
 
@@ -105,13 +105,20 @@ Launch one subagent per role in a single message; the prompt template is in Sect
 
 For all major issues, especially those of the "error" type:
 1. In the main session's own copy (e.g. `work-main/`, or a fresh `cp -R`), recompute, read the source code, and read the cited sources.
-2. Record in `verification.md`:
+2. Record in `verification.md`, one row per claimed issue:
 
-| # | Source reviewer | Claimed issue | Verification action (command or file) | Result | Basis |
+| id | item | source | verdict | evidence | verified |
 |---|---|---|---|---|---|
 
-3. The result is one of three: confirmed / refuted / partially confirmed (state which part is confirmed). For numerical issues, give the recomputed value.
-4. **Before confirming, rule out the innocent explanations** and record which ones were checked: a convention or definition stated elsewhere in the paper, material in the supplement, a different but equivalent formulation, a reviewer misreading, or a difference between the pinned version and the one the reviewer quoted. An issue that survives these is confirmed; one that depends on them is refuted or partially confirmed.
+3. The verdict is CONFIRMED, PARTIALLY CONFIRMED (say which part), REFUTED, or NOT CHECKED. For numerical issues, give the recomputed value in the evidence. `verified` is `yes` once the main session has done the check.
+4. Compute the verified-issues report, which also prints the disclaimer and the pinned version:
+
+   ```
+   python3 <skill-dir>/scripts/review_report.py verification.md --out verified_issues.md --pin PIN.json --lang <en|zh>
+   ```
+
+   Any CONFIRMED or PARTIALLY CONFIRMED row that is not verified makes it NOT FINAL (exit code 2). P0 in the joint report may contain only the confirmed rows of this report.
+5. **Before confirming, rule out the innocent explanations** and record which ones were checked: a convention or definition stated elsewhere in the paper, material in the supplement, a different but equivalent formulation, a reviewer misreading, or a difference between the pinned version and the one the reviewer quoted. An issue that survives these is confirmed; one that depends on them is refuted or partially confirmed.
 
 ## Phase 6: Joint report
 

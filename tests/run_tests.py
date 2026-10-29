@@ -372,6 +372,61 @@ class CiteContexts(Tmp):
 
 
 # ---------------------------------------------------------------------------
+# Reports computed from findings ledgers (lib/findings.py)
+# ---------------------------------------------------------------------------
+LEDGER_HEAD = "| id | item | location | verdict | evidence | verified |\n|---|---|---|---|---|---|\n"
+
+
+class FindingsReports(Tmp):
+    def report(self, skill, name, body, ok_codes, *extra):
+        led = os.path.join(self.tmp, "ledger.md")
+        wr(led, "# Ledger\n\n" + LEDGER_HEAD + body)
+        out = os.path.join(self.tmp, "report.md")
+        p = run([script(skill, name), led, "--out", out, *extra], ok_codes=ok_codes)
+        return p.returncode, rd(out)
+
+    def test_proof_profile_exit_codes(self):
+        code, text = self.report("proof-audit", "audit_report.py",
+                                 "| R1 | thm:a | m:1 | VERIFIED | ok | no |\n"
+                                 "| R2 | lem:b | m:2 | Valid with fix | wording | no |\n"
+                                 "| R3 | thm:c | m:3 | CONDITIONAL(Conj. 1) | stated | no |\n", (0,))
+        self.assertEqual(code, 0)
+        self.assertIn("No confirmed severe finding", text)
+        self.assertIn("CONDITIONAL (Conj. 1)", text)
+        code, text = self.report("proof-audit", "audit_report.py",
+                                 "| R1 | thm:a | m:1 | GAP | missing step | no |\n", (2,))
+        self.assertIn("NOT FINAL", text)                         # an unverified GAP cannot conclude anything
+        code, text = self.report("proof-audit", "audit_report.py",
+                                 "| R1 | thm:a | m:1 | GAP | missing step | yes |\n"
+                                 "| R2 | thm:b | m:2 | PLAUSIBLE | ? | yes |\n", (2,))
+        self.assertIn("outside the vocabulary", text)
+        code, text = self.report("proof-audit", "audit_report.py",
+                                 "| R1 | thm:a | m:1 | GAP | missing step | yes |\n"
+                                 "| R2 | sup | s:1 | NOT CHECKED | out of scope | no |\n", (1,), "--lang", "zh")
+        self.assertIn("已确认的严重问题：thm:a", text)
+        self.assertIn("1 条未检查", text)
+
+    def test_review_profile_with_pin(self):
+        pin = os.path.join(self.tmp, "PIN.json")
+        wr(pin, '{"head": "abcdef1234", "manuscript_sha256": {"main.tex": "' + "0" * 64 + '"}}')
+        code, text = self.report("mock-review", "review_report.py",
+                                 "| K1 | claim | m:1 | partial | half true | yes |\n"
+                                 "| K2 | claim | m:2 | refuted | misread | yes |\n", (1,), "--pin", pin)
+        self.assertIn("does not represent the decision", text)
+        self.assertIn("git abcdef1", text)
+        self.assertIn("PARTIALLY CONFIRMED 1", text)
+
+    def test_integrity_and_numbers_profiles(self):
+        code, _ = self.report("experiment-integrity", "integrity_report.py",
+                              "| F1 | seeds | a.py:3 | POSSIBLE | innocent explanation open | no |\n", (0,))
+        self.assertEqual(code, 0)
+        code, text = self.report("number-audit", "numbers_report.py",
+                                 "| N1 | 0.83 | paper:5 | mismatch | data 0.812 | yes |\n"
+                                 "| N2 | 12.5% | paper:29 | confirmed | 1610/12840 | no |\n", (1,))
+        self.assertIn("MISMATCH 1", text)
+
+
+# ---------------------------------------------------------------------------
 # Repository conventions (see Contributing in README.md)
 # ---------------------------------------------------------------------------
 class SkillMetadata(unittest.TestCase):

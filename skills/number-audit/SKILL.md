@@ -170,10 +170,18 @@ Write `number_audit/<date>/report.md` (in the user's language), with conclusions
 5. Guards installed (Phase 7): how many entries are sourced, and how to run `guard-check`.
 6. Reproduction commands.
 
-Format of `ledger.md`:
+Format of `ledger.md` (the `verdict` column takes the statuses of hard rule 5; `verified` is `yes` when the main session confirmed the value or the problem):
 
-| id | location | displayed value | status | source (file:line / script + command) | recomputed value | convention / setting | notes |
+| id | item | location | verdict | source (file:line / script + command) | recomputed value | convention / setting | verified |
 |---|---|---|---|---|---|---|---|
+
+Then compute the summary that opens `report.md`:
+
+```
+python3 <skill-dir>/scripts/numbers_report.py number_audit/<date>/ledger.md --out number_audit/<date>/summary.md --lang <en|zh>
+```
+
+Unverified mismatches, stats inconsistencies, convention issues or superseded parameters make it NOT FINAL (exit code 2). The "must fix" list of the report is exactly the confirmed severe rows.
 
 Optional: also write a patch `fixes.patch`, or a location-by-location replacement table, for the user to review before it is applied.
 

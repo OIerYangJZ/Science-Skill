@@ -117,7 +117,13 @@ Also check the guards themselves: boundary-delimited matching, decimal rounding 
 
 ## Phase 7: Report
 
-Write `integrity/<date>/report.md` in the user's language, conclusions first:
+**The conclusion is computed from the findings ledger.** Fill `integrity/<date>/findings.md` with one row per lead or finding: `| id | item | location | verdict | evidence | verified | tier |`. Verdicts are CONFIRMED, POSSIBLE, REFUTED or NOT CHECKED; the tier is T, S or R; `verified` is `yes` when the main session confirmed the finding and ruled out the innocent explanations. Then run:
+
+```
+python3 <skill-dir>/scripts/integrity_report.py integrity/<date>/findings.md --out integrity/<date>/report.md --lang <en|zh>
+```
+
+An unverified CONFIRMED makes the report NOT FINAL (exit code 2); confirmed findings give exit code 1. Append below the computed part, in the user's language:
 1. **Confirmed findings**, ordered by impact on conclusions: the claim, what the code does, the evidence, the observability tier (T / S / R), the innocent explanations ruled out, before/after numbers, the fix (patch path), and the guard added. Findings that stayed "possible" are listed separately with what would settle them.
 2. **Design-ledger summary**: how many claims matched, mismatched, or could not be verified.
 3. **Refuted leads**: briefly, so that they are not re-investigated.

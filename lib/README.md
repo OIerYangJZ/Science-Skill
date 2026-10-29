@@ -11,3 +11,7 @@ Depends only on the Python 3.10+ standard library. Each skill's scripts locate t
 | `statsutil.py` | p-values for t, F, χ², r, z (regularized incomplete beta and gamma functions) | number-audit stats |
 
 Network access goes only to public metadata APIs; no personal information is sent. For your own quota, set `OPENALEX_API_KEY` (without a key, OpenAlex gives everyone one small shared daily allowance) and `SCIENCE_SKILL_MAILTO` (Crossref polite pool).
+
+## findings.py
+
+Findings ledgers and the reports computed from them. `proof-audit`, `mock-review`, `experiment-integrity` and `number-audit` call `findings.main_cli(<profile>)` from their report scripts. Each profile (`proof`, `review`, `integrity`, `numbers`) defines its verdict vocabulary, the severe verdicts that need main-session verification, and the report title. `render()` returns the Markdown report and the analysis; the exit code is 0 when there is no confirmed severe finding, 1 when there are confirmed severe findings, and 2 when the report is not final.

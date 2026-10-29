@@ -308,6 +308,22 @@ claude --plugin-dir /path/to/Science-Skill
 4. **产出写入带日期的工作目录：** 放在稿件旁边；在 git 仓库中会加入 `.git/info/exclude`。模拟审稿的副本放在仓库之外。
 5. **最后用你的语言给出简短汇报：** 结论、文件路径、需要你决定的事项，以及没能检查的部分。
 
+**审计结论由脚本算出，不由模型书写。** `proof-audit`、`mock-review`、`experiment-integrity` 和 `number-audit` 最后都要填一张发现账本，即一张 Markdown 表格，列为 `id | item | location | verdict | evidence | verified`。报告脚本根据账本生成报告：
+- 记下日期、版本和稿件文件的 SHA-256；
+- 统计各类判定的数量，推出总体判定，写出结论句；
+- 把条目分组为：已确认的严重问题、需要关注的问题、未检查的条目、通过的条目。
+
+严重判定（INVALID 或 GAP、经确认的审稿错误、经确认的完整性问题、数字不符）只有经主会话核实（`verified = yes`）才算数，否则报告标为**未定稿**。判定用词不在该技能的词表里，也会导致未定稿。技能不能说出计算报告里没有的结论。
+
+| 报告脚本 | 账本 | 判定词 |
+|---|---|---|
+| `proof-audit/scripts/audit_report.py` | `verdicts.md` | VERIFIED、VERIFIED WITH FIXES、CONDITIONAL(…)、GAP、INVALID、NOT CHECKED |
+| `mock-review/scripts/review_report.py`（`--pin PIN.json`） | `verification.md` | CONFIRMED、PARTIALLY CONFIRMED、REFUTED、NOT CHECKED |
+| `experiment-integrity/scripts/integrity_report.py` | `findings.md`（另加一列 `tier`：T、S 或 R） | CONFIRMED、POSSIBLE、REFUTED、NOT CHECKED |
+| `number-audit/scripts/numbers_report.py` | `ledger.md` | CONFIRMED、MISMATCH、STATS-INCONSISTENT、CONVENTION-ISSUE、SUPERSEDED-PARAMETER、ORPHAN、UNVERIFIABLE |
+
+每个报告脚本都支持 `--lang en|zh`。退出码：没有已确认的严重问题时为 0，有已确认的严重问题时为 1，报告未定稿时为 2。
+
 | 技能 | 工作目录 | 会改动原有文件吗？ |
 |---|---|---|
 | paper-polish | `polish/<日期>/` | 不会；新文本写入新文件 |
@@ -473,6 +489,7 @@ python3 $N stats survey.docx --out number_audit/today --bounds 1,7 --items 4   #
 python3 $N trace number_audit/today/numbers.json --repo . --regions abstract,introduction,caption,table
 python3 $N guard-init number_audit/today/numbers.json --out guards.json  # 然后填写 "source" 和 "locator"
 python3 $N guard-check guards.json                                        # 有问题时退出码为 1
+python3 skills/number-audit/scripts/numbers_report.py number_audit/today/ledger.md --out number_audit/today/summary.md
 ```
 
 <details>
@@ -546,12 +563,13 @@ locator 的写法：
 6. **安装护栏：** 断言、测试和数字护栏，让重跑无法把问题带回来；每个调用点都要修。
 7. **写报告。** 只有排除了无辜解释（并逐条列出）之后，问题才算"确认"。每条问题都注明可观察的程度：**T**（只有正文）、**S**（读过源代码）或 **R**（重跑过）。
 
-**产出**（`integrity/<日期>/`）：`design_ledger.md`、`integrity_scan.md` / `.json`、`impact.md`、`report.md`，以及建议的补丁。
+**产出**（`integrity/<日期>/`）：`design_ledger.md`、`integrity_scan.md` / `.json`、`impact.md`、`findings.md`（账本）、`report.md`（由账本算出），以及建议的补丁。
 
 **脚本**
 
 ```bash
 python3 skills/experiment-integrity/scripts/integrity_scan.py ./analysis --out integrity/today
+python3 skills/experiment-integrity/scripts/integrity_report.py integrity/today/findings.md --out integrity/today/report.md
 ```
 
 <details>
@@ -609,15 +627,32 @@ Python 用语法树扫描，R、Julia、MATLAB 和 shell 用正则扫描。每�
 7. **计算机辅助部分：** 送进求解器的每条约束都追溯到某个引理；要求独立的第二编码或精确证书（同一个公式换一个求解器，只验证了算术）；合理性查询；复现记录。**长时间计算会先问你。**
 8. **有效性与常数**，然后**写报告**：每个结果的状态（VERIFIED、VERIFIED WITH FIXES、GAP、INVALID、CONDITIONAL on …）、最小修补方案，以及没有检查的部分。
 
-**产出**（`proof_audit/<日期>/`）：`proof_map.md` / `.json`、`obligation_ledger.md`、`assumption_ledger.md`、`notation.md`、`report.md`。
+**产出**（`proof_audit/<日期>/`）：`proof_map.md` / `.json`、`obligation_ledger.md`、`assumption_ledger.md`、`notation.md`、`verdicts.md`（账本）、`report.md`（先由账本算出，再加文字说明）。
 
 **脚本**
 
 ```bash
 python3 skills/proof-audit/scripts/proof_map.py main.tex supplement.tex --out proof_audit/today
+python3 skills/proof-audit/scripts/audit_report.py proof_audit/today/verdicts.md --out proof_audit/today/report.md \
+        --manuscript main.tex supplement.tex --version "$(git rev-parse --short HEAD)"
 ```
 
 证明地图跟踪 `\ref`、`\cref`、`\eqref` 和 `\autoref`；能识别放在别处的证明（"Proof of Theorem~\ref{…}"、标题为 "Proof of …" 的小节、行内的 "Proof." 段落）；也会跟踪 `\externaldocument` 引入的标签。它报告依赖树、循环、没有证明的结果、条件链、未定义的标签、未被使用的引理、跳步用语、常数与有效性线索，以及以不同内容重复定义的宏。手写的引用（"Theorem 3"）它看不到；正文里提到某个结果也可能造成假的循环，所以每条依赖边都附有位置，便于核对。
+
+<details>
+<summary><b>真实运行的例子</b>（作者自己的理论稿件；只公开流程）</summary>
+
+- **证明地图。** `proof_map.py` 梳理出约 65 个定理类结果，报告了 6 个循环和 7 条条件链。逐条核对后，全部是正文里的指引或比较，不是真的依赖。所以就这一点而言，摘要里说无条件的结果确实是无条件的。
+- **逐步检查。** 7 个子代理按附录分组逐步检查，另有 1 个子代理审查求解器证书，effort 都设为 `high`。它们只读本组证明和被引结果的陈述，旧审稿意见和作者笔记都已排除。
+- **复核。** 主会话复核了每一条 GAP。账本共 19 行，`audit_report.py` 算出：VERIFIED 3、VERIFIED WITH FIXES 8、CONDITIONAL 3、GAP 4（均已核实）、NOT CHECKED 1，**没有 INVALID**。
+- **GAP 的内容。** 都可以补上，且不改任何定理陈述。其中一个主定理的核心不等式只由求解器检查，一个常数和求解器公式的一部分没有写出；另有一处"最优性"说法强于求解器运行所能支持的结论。
+- **经验。**
+  - effort 只能在启动时设定，所以逐步检查以 `high` 重新启动，以节省额度。用 TaskStop 暂停、再用 SendMessage 恢复，可以保留各子代理的进度。
+  - 有三项检查被权限系统拦下，报告中列为"未检查"。
+
+详见 [`examples/README.md`](examples/README.md)。
+
+</details>
 
 ### cite-verify
 
@@ -661,6 +696,19 @@ python3 -I $R contexts manuscript.docx --out refcheck/today       # 按文献列
 **提示**
 - 书籍、学位论文、软件和档案常常没有被收录，这类条目需要人工查看。
 - Word 中的上标引用编号在转换为文本时会丢失，识别不了。
+
+<details>
+<summary><b>真实运行的例子</b>（一篇 REVTeX 稿件，<code>thebibliography</code> 共 57 条）</summary>
+
+第一次运行 `check-list` 时，57 条中有 29 条被标出，几乎全是误报。原因有四个：
+- `\href{https://doi.org/…}{标题}` 让网址和标题粘在一起，DOI 被读错；
+- 标题中的数学公式（`$z$-rotations`）和 Crossref 标题中的 MathML 使标题比对失败；
+- 作者名中的 ø、ł 和 LaTeX 重音匹配不上；
+- "See Supplemental Material" 这样的说明被当成参考文献检查。
+
+修复后只剩 2 条，都是检索没命中的真实论文。这属于"查不到"，不等于"编造"。详见 [`examples/README.md`](examples/README.md)。
+
+</details>
 
 ### novelty-audit
 
@@ -797,7 +845,7 @@ python3 -I $V factsheet "PRX Quantum" "Quantum" --out venue/today/factsheets.md
 
 **跨模型审稿人（可选）。** 同一模型家族的审稿人有共同的盲区。如果你手头有其他模型，可以让其中一个审稿方向在那个模型上运行，使用相同的副本和提示词。把未发表的稿件发给另一家服务商，就等于与它共享了稿件，所以技能每次都会先征得你的同意。
 
-**产出**（放在仓库之外：`~/mock_review/<名称>-<日期>/`）：`pack/`、`work-<方向>/`、`reports/`、`verification.md`、`joint_report.md` 或 `quick_report.md`、`PIN.json`、`MANIFEST.md`。
+**产出**（放在仓库之外：`~/mock_review/<名称>-<日期>/`）：`pack/`、`work-<方向>/`、`reports/`、`verification.md`（账本）、`verified_issues.md`（由账本算出）、`joint_report.md` 或 `quick_report.md`、`PIN.json`、`MANIFEST.md`。
 
 **脚本**
 
@@ -805,7 +853,23 @@ python3 -I $V factsheet "PRX Quantum" "Quantum" --out venue/today/factsheets.md
 P=skills/mock-review/scripts/review_pack.py
 python3 $P pack --repo . --out ~/mock_review/paper-2026-10-29 --roles math,domain,stats --exclude "notes/*"
 python3 $P check-pin ~/mock_review/paper-2026-10-29/PIN.json      # 稿件有改动时退出码为 1
+python3 skills/mock-review/scripts/review_report.py ~/mock_review/paper-2026-10-29/verification.md \
+        --out ~/mock_review/paper-2026-10-29/verified_issues.md --pin ~/mock_review/paper-2026-10-29/PIN.json
 ```
+
+<details>
+<summary><b>真实运行的例子</b>（作者自己的理论稿件；只公开流程）</summary>
+
+- **打包并锁定版本。** `review_pack.py` 发现 15 个文件名像作者笔记的文件，其中有这篇稿子以前的审稿意见；排除后重新打包。
+- **审稿标准。** 期刊的标准页面拒绝自动抓取（HTTP 403），改用搜索摘录，并标注"需上官网核对"。
+- **攻击与辩护。** 攻击方用约 12 分钟写出三条致命论点；它读过的文件清单显示没有越出 pack。辩护方拆成 13 个子论点：6 个成立（多数论文已披露），4 个可通过改写修复，1 个被驳倒，2 个被部分驳倒。
+- **核实与报告。** 主会话核对了每一处引文和数字，在 `verification.md` 中记了 13 行；`review_report.py` 算出：CONFIRMED 8、PARTIALLY CONFIRMED 4、REFUTED 1，已定稿。
+- **决定性的反对意见**在于意义和定位，不在数学。
+- **教训。** 辩护方曾为复现证书自行安装求解器包，之后提示词明确禁止子代理安装软件。
+
+详见 [`examples/README.md`](examples/README.md)。
+
+</details>
 
 ### dead-end-ledger
 
@@ -906,7 +970,7 @@ flowchart LR
 | 结果计入之前 | 对代码运行 `experiment-integrity`；理论主张用 `proof-audit`；报告数值用 `number-audit` 护栏 | 由流水线自身的 bug、哨兵值、数据泄漏或未经检查的证明步骤产生的结果 |
 | 写作与审稿 | `paper-polish`、`cite-verify`；每轮迭代用 `mock-review --quick`，投稿前做完整的 `mock-review` | 防御性或夸大的稿件；未经核实的审稿意见 |
 
-**可由机器判定的关卡**（失败时退出码非零）：`number_audit.py guard-check`、`ledger.py lint`、`ledger.py graph`、`review_pack.py check-pin`。其他脚本给出的是需要智能体或人去阅读的线索；`refcheck.py` 会写出 `results.json`，逐条列出 ERROR 和 WARN。在流水线中，同意规则依然有效：长时间或付费的运行，以及任何要发送到外部服务的内容，都需要用户批准。
+**可由机器判定的关卡**（失败时退出码非零）：`number_audit.py guard-check`、`ledger.py lint`、`ledger.py graph`、`review_pack.py check-pin`，以及四个报告脚本（`audit_report.py`、`review_report.py`、`integrity_report.py`、`numbers_report.py`：有已确认的严重问题时为 1，报告未定稿时为 2）。其他脚本给出的是需要智能体或人去阅读的线索；`refcheck.py` 会写出 `results.json`，逐条列出 ERROR 和 WARN。在流水线中，同意规则依然有效：长时间或付费的运行，以及任何要发送到外部服务的内容，都需要用户批准。
 
 ## 命令行工具
 
@@ -920,6 +984,7 @@ flowchart LR
 | `cite-verify/scripts/refcheck.py` | `check`、`check-list`、`contexts` | BibTeX 与 RIS 核验；自由文本文献列表；按文献列出引用句 |
 | `novelty-audit/scripts/lit_graph.py` | `resolve`、`search`、`citing`、`refs`、`recent`、`watch` | 在 OpenAlex、arXiv、Europe PMC 和 Zenodo 上检索；从 DOI、arXiv ID 或 PMID 出发的引用图；监测清单 |
 | `venue-fit/scripts/venue_fit.py` | `neighbors`、`profile`、`factsheet` | 相似工作发在哪里；期刊档案；事实表模板 |
+| `proof-audit/scripts/audit_report.py`、`mock-review/scripts/review_report.py`、`experiment-integrity/scripts/integrity_report.py`、`number-audit/scripts/numbers_report.py` | 账本；`--out`、`--lang`、`--manuscript`、`--version`（审稿另有 `--pin`） | 由发现账本计算报告；退出码 0 / 1 / 2 |
 | `mock-review/scripts/review_pack.py` | `pack`、`check-pin` | 隔离并锁定版本的审稿副本；检测稿件改动 |
 | `dead-end-ledger/scripts/ledger.py` | `init`、`search`、`card`、`graph`、`lint`、`status` | 建立账本、查重、想法卡片、依赖图、检查 |
 
