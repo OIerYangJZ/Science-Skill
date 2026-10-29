@@ -6,4 +6,4 @@ Although many methods exist, we attempt to shed light on the problem. It is wort
 
 ## Introduction
 
-The problem remains largely unexplored. It is shown that the bound is tight. This novel framework is fundamental.
+The problem remains largely unexplored. It is shown that the bound is tight. This novel framework is fundamental. It is the first machine-learning model for the task.

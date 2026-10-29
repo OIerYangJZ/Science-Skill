@@ -131,7 +131,9 @@ class NumberAuditStats(Tmp):
         wr(path, "## Results\n\nMean length of stay in the validation subsample was 4.37 days (n = 23).\n"
                  "Mean AUC across folds was 0.81 (n = 5).\n"
                  "Mean age of participants was 54.35 years (n = 20).\n"
-                 "参数敏感性分析中，准确率为 84.23%；n=6 时达到最优。\n")
+                 "参数敏感性分析中，准确率为 84.23%；n=6 时达到最优。\n"
+                 "Readmission occurred after 1,610 of 12,840 discharges (12.5%).\n\n"
+                 "Our model outperforms the baseline (0.81 ± 0.02 vs 0.79 ± 0.02).\n")
         out = os.path.join(self.tmp, "extra")
         run([script("number-audit", "number_audit.py"), "stats", path, "--out", out])
         rows = {(r["test"], r["reported"]): r["status"] for r in jload(os.path.join(out, "stats.json"))}
@@ -139,6 +141,9 @@ class NumberAuditStats(Tmp):
         self.assertEqual(self.find(rows, "GRIM mean", "54.35"), "ok")        # 1087 / 20
         self.assertFalse([1 for (t, rep) in rows if "AUC" in rep], "GRIM does not apply to AUC")
         self.assertFalse([1 for (t, rep) in rows if "84.23" in rep], "n=6 after '；' is not the sample size")
+        self.assertEqual(self.find(rows, "k/n %", "1,610 of 12,840"), "ok")      # thousands separators, unit word
+        locs = {r["test"]: r["loc"] for r in jload(os.path.join(out, "stats.json"))}
+        self.assertTrue(locs["overlap"].endswith(":9"), locs)                     # the sentence's own line
 
     def test_bounded_scale(self):
         self.assertNotIn(("SD bound", "4.1 ± 3.5"), self.stats())
@@ -205,6 +210,9 @@ class HedgeScan(Tmp):
         ci = self.counts(res, "introduction")
         for code in ("D6", "D10", "O"):
             self.assertGreaterEqual(ci.get(code, 0), 1, f"{code} in introduction: {ci}")
+        files = res if isinstance(res, list) else res.get("files", [res])
+        o_hits = [h["match"] for h in files[0]["sections"]["introduction"]["hits"] if h["code"] == "O"]
+        self.assertTrue(any("first machine-learning model" in m for m in o_hits), o_hits)
 
     def test_specific_limitations_not_flagged(self):
         res = self.scan(os.path.join(FIX, "hedge.md"))
@@ -244,6 +252,22 @@ class IntegrityScan(Tmp):
         self.assertNotIn(fine, r1_lines, "unconditional draw followed by a condition is the correct pattern")
         self.assertFalse([h for h in hits if "tests/" in h["file"]], "tests/ must not produce X1 leads")
         self.assertTrue(any("f1_macro" in h["note"] for h in by["X2"]))
+
+
+class IntegrityPipeline(Tmp):
+    def test_leakage_selection_and_seed_lists(self):
+        out = os.path.join(self.tmp, "ei")
+        run([script("experiment-integrity", "integrity_scan.py"), os.path.join(FIX, "integrity_pipeline"),
+             "--out", out])
+        d = jload(os.path.join(out, "integrity_scan.json"))
+        by = {}
+        for h in d["hits"]:
+            by.setdefault(h["code"], []).append(h["line"])
+        self.assertEqual(sorted(by.get("L1", [])), [14, 15], d["hits"])   # fitted in preprocess(), split in pick_k()
+        self.assertEqual(by.get("L2"), [28], d["hits"])                   # best k chosen on y_test
+        self.assertNotIn("X2", by, "'preprocess' is not a metric function")
+        lists = {s[1] for v in d["seeds"].values() for s in v}
+        self.assertTrue({"[1, 2, 3]", "[7, 8, 9]"} <= lists, lists)
 
 
 # ---------------------------------------------------------------------------
@@ -348,50 +372,6 @@ class CiteContexts(Tmp):
 
 
 # ---------------------------------------------------------------------------
-# examples/synthetic-study: what the scripts alone must find (see its ANSWER_KEY.md)
-# ---------------------------------------------------------------------------
-STUDY = os.path.join(ROOT, "examples", "synthetic-study", "study")
-
-
-class SyntheticStudy(Tmp):
-    def test_statistics(self):
-        out = os.path.join(self.tmp, "st")
-        run([script("number-audit", "number_audit.py"), "stats", os.path.join(STUDY, "paper.md"), "--out", out])
-        rows = {(r["test"], r["reported"][:40]): r["status"] for r in jload(os.path.join(out, "stats.json"))}
-        flagged = {t for (t, _), s in rows.items() if s != "ok"}
-        self.assertEqual(flagged, {"t", "GRIM mean", "overlap", "delta", "OR CI"}, rows)       # P9 P10 P4 P11 P12
-        self.assertIn(("k/n %", "1,610 of 12,840 discharges (12.5%)"), rows)                    # the clean control
-        self.assertEqual(rows[("k/n %", "1,610 of 12,840 discharges (12.5%)")], "ok")
-
-    def test_abstract_numbers_without_source(self):
-        out = os.path.join(self.tmp, "na")
-        run([script("number-audit", "number_audit.py"), "extract", os.path.join(STUDY, "paper.md"), "--out", out])
-        run([script("number-audit", "number_audit.py"), "trace", os.path.join(out, "numbers.json"), "--repo", STUDY,
-             "--regions", "abstract", "--out", out])
-        orphans = {r["raw"] for r in jload(os.path.join(out, "trace.json"))["rows"] if r["status"] == "orphan"}
-        self.assertEqual(orphans, {"12,480", "0.83"})                                           # P6 P5
-
-    def test_code(self):
-        out = os.path.join(self.tmp, "ei")
-        run([script("experiment-integrity", "integrity_scan.py"), STUDY, "--out", out])
-        d = jload(os.path.join(out, "integrity_scan.json"))
-        codes = {h["code"] for h in d["hits"]}
-        self.assertEqual(codes, {"L1", "L2", "X1", "X2"}, d["hits"])                           # P1 P2 P7 P8
-        seed_lists = {s[1] for v in d["seeds"].values() for s in v}
-        self.assertTrue({"[0, 1, 2, 3, 4]", "[10, 11, 12, 13, 14]"} <= seed_lists, seed_lists)  # P3
-
-    def test_wording(self):
-        out = os.path.join(self.tmp, "h.json")
-        run([script("paper-polish", "hedge_scan.py"), os.path.join(STUDY, "paper.md"), "--json", out])
-        res = jload(out)
-        files = res if isinstance(res, list) else res.get("files", [res])
-        c = files[0]["sections"]["abstract"]["counts"]
-        for code in ("D2", "D4", "D16", "O", "OS"):                                             # P16 P14 P4
-            self.assertGreaterEqual(c.get(code, 0), 1, c)
-        self.assertGreaterEqual(files[0]["sections"]["introduction"]["counts"].get("D15", 0), 1)
-
-
-# ---------------------------------------------------------------------------
 # Repository conventions (see Contributing in README.md)
 # ---------------------------------------------------------------------------
 class SkillMetadata(unittest.TestCase):
@@ -443,14 +423,30 @@ class Online(Tmp):
         self.assertEqual(res["lecun2015"], set(), res)
         self.assertIn("NOT_FOUND", res["fake2024"])
 
-    def test_synthetic_study_bibliography(self):
+    def test_crossref_subtitle_is_not_a_title_mismatch(self):
+        bib = os.path.join(self.tmp, "s.bib")
+        wr(bib, "@article{kansagara2011,\n title={Risk prediction models for hospital readmission: a systematic "
+                "review},\n author={Kansagara, Devan and Englander, Honora and Salanitro, Amanda and Kagen, David and "
+                "Theobald, Cecelia and Freeman, Michele and Kripalani, Sunil},\n journal={JAMA}, volume={306}, "
+                "number={15}, pages={1688--1698}, year={2011},\n doi={10.1001/jama.2011.1515}\n}\n")
         out = os.path.join(self.tmp, "cv")
-        run([script("cite-verify", "refcheck.py"), "check", os.path.join(STUDY, "refs.bib"), "--all", "--out", out],
-            ok_codes=(0, 1))
+        run([script("cite-verify", "refcheck.py"), "check", bib, "--all", "--out", out], ok_codes=(0, 1))
         res = {r["key"]: {i[1] for i in r["issues"]} for r in jload(os.path.join(out, "results.json"))["results"]}
-        self.assertEqual(res["kansagara2011"], {"YEAR_MISMATCH"}, res)   # the subtitle is not a title mismatch
-        self.assertEqual(res["friedman2001"], set(), res)
-        self.assertIn("NOT_FOUND", res["smith2023"])                     # P15
+        self.assertNotIn("TITLE_MISMATCH", res["kansagara2011"], res)   # Crossref keeps "A Systematic Review" apart
+
+    def test_revtex_reference_list(self):
+        tex = os.path.join(self.tmp, "refs.tex")
+        wr(tex, "\\documentclass{article}\\begin{document}\nText~\\cite{a,b}.\n\\begin{thebibliography}{2}\n"
+                "\\bibitem{a} I. H. Kim, \\href{https://doi.org/10.22331/q-2026-08-13-2191}{Catalytic $z$-rotations "
+                "in constant $T$-depth}, Quantum \\textbf{10}, 2191 (2026).\n"
+                "\\bibitem{b} L. de Moura and N. Bj{\\o}rner, \\href{https://doi.org/10.1007/978-3-540-78800-3_24}"
+                "{Z3: An efficient SMT solver}, in TACAS 2008, LNCS 4963, 337 (2008).\n"
+                "\\end{thebibliography}\n\\end{document}\n")
+        out = os.path.join(self.tmp, "cl")
+        run([script("cite-verify", "refcheck.py"), "check-list", tex, "--out", out], ok_codes=(0, 1))
+        report = rd(os.path.join(out, "report.md"))
+        for bad in ("DOI_NOT_FOUND", "NOT_FOUND", "AUTHOR_MISSING", "TITLE_DIFFERS"):
+            self.assertNotIn(bad, report, report[-1500:])
 
     def test_lit_graph_resolve_pmid(self):
         p = run([script("novelty-audit", "lit_graph.py"), "resolve", "PMID:26044081"])

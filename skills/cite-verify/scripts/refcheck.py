@@ -501,8 +501,13 @@ def _ntoks(s: str) -> list[str]:
 
 def verify_string(ref: str) -> dict:
     out = {"issues": [], "record": None, "via": ""}
-    rtoks = set(_ntoks(ref))
-    rnorm = " " + " ".join(_ntoks(ref)) + " "
+    if re.match(r"(?i)\s*(see|cf\.|for (?:details|more)|we (?:thank|acknowledge)|note that)\b", ref) and \
+            not re.search(r"\b(10\.\d{4,9}/|19\d{2}|20\d{2})", ref):
+        out["issues"].append((INFO, "NOT_A_REFERENCE", "a note rather than a bibliographic entry; not checked"))
+        return out
+    words = re.sub(r"MATH", " ", ref)            # math placeholders from LaTeX ("MATH-rotations") hide title words
+    rtoks = set(_ntoks(words))
+    rnorm = " " + " ".join(_ntoks(words)) + " "
     cands = []
     dm = re.search(r"\b(10\.\d{4,9}/[^\s,;]+?)[.,;]?(?:\s|$)", ref)
     if dm:
@@ -527,6 +532,15 @@ def verify_string(ref: str) -> dict:
             cov -= 0.3
         if cov > bcov:
             best, bcov, bvia = it, cov, via
+    doi_cands = [it for via, it in cands if via == "DOI in reference"]
+    if (best is None or bcov < 0.85) and doi_cands:
+        # The DOI resolves: trust it, and report a title that reads differently instead of "not found".
+        best, bvia = doi_cands[0], "DOI in reference"
+        t = (best.get("title") or [""])[0]
+        if coverage(t) < 0.5:
+            out["issues"].append((WARN, "TITLE_DIFFERS", f"record title {t!r}: check that the DOI belongs to this "
+                                                         "reference"))
+        bcov = max(bcov, 0.85)
     if best is None or bcov < 0.85:
         am = sch.ARXIV_ID.search(ref) if re.search(r"arxiv", ref, re.I) else None
         if am:
@@ -594,7 +608,11 @@ def reference_strings(path: str) -> list[tuple[str, str]]:
     if kind == "tex":
         items = []
         for m in re.finditer(r"\\bibitem(?:\[[^\]]*\])?\{[^}]*\}(.*?)(?=\\bibitem|\\end\{thebibliography\})", text, re.S):
-            cleaned, _ = clean_latex(m.group(1))
+            # REVTeX style: \href{https://doi.org/10...}{Title}. Keep the title and the URL as separate words;
+            # otherwise the text conversion glues them ("...052329Magic-state ...") and the DOI is misread.
+            body = re.sub(r"\\href\{([^{}]*)\}\{((?:[^{}]|\{[^{}]*\})*)\}", r"\2, \1 ", m.group(1))
+            body = re.sub(r"\\url\{([^{}]*)\}", r" \1 ", body)
+            cleaned, _ = clean_latex(bibtex.latex_to_text(body))
             f, ln = src.loc(_line_of(text, m.start()))
             items.append((f"{f}:{ln}", re.sub(r"\s+", " ", cleaned).strip()))
         return items

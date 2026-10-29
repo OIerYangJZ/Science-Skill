@@ -105,7 +105,8 @@ def oa_json(path: str, params: dict | None = None):
 # small utils
 # ---------------------------------------------------------------------------
 def norm_title(t: str) -> str:
-    t = unicodedata.normalize("NFKD", t or "")
+    t = re.sub(r"<[^>]+>", " ", t or "")          # MathML / HTML markup in Crossref titles
+    t = unicodedata.normalize("NFKD", t)
     t = re.sub(r"\$[^$]*\$", " ", t)
     return re.sub(r"[^a-z0-9]+", " ", t.lower()).strip()
 

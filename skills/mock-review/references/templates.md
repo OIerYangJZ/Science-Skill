@@ -14,7 +14,8 @@ Journal criteria (verbatim): <criteria.txt>
 Rules:
 - Read only inside <pack path>. Do not open any other directory, in particular
   not the source repository, author notes, earlier reviews or cover letters.
-- Run code only in your work copy <work-role path>. Record every command.
+- Run code only in your work copy <work-role path>. Record every command. Do not install
+  software; if a check needs a missing package, report it as not checked.
 - Reproduce numbers where you can; say which you reproduced and which you did not.
 - Be concrete: every major issue needs a location (file:line or theorem/figure),
   the evidence, and the change you request.
@@ -123,7 +124,8 @@ in <direction>. Your task is to find the strongest reasons to reject it.
 Materials (read-only): <pack path>, version pinned in <PIN.json>.
 Journal criteria (verbatim): <criteria.txt>
 Read only inside <pack path>, plus <criteria.txt> and <PIN.json>. Do not open any
-other directory. Run code only in <work-attacker path>.
+other directory. Run code only in <work-attacker path>. Do not install software; if a check
+needs a package that is not installed, say so instead.
 
 Write a rejection memo of at most 200 words to <reports/kill_memo.md> in <language>:
 - At most 3 kill arguments (K1, K2, K3), strongest first. A kill argument is a reason
@@ -148,7 +150,8 @@ Materials (read-only): <pack path>, version pinned in <PIN.json>.
 Rejection memo: <reports/kill_memo.md> (the memo and the referee's listed
 recomputations, which are evidence you may check)
 Read only inside <pack path>, the memo and <PIN.json>. Do not open any other
-directory. Run code only in <work-defender path>.
+directory. Run code only in <work-defender path>. Do not install software; if a check
+needs a package that is not installed, say so instead.
 
 For each kill argument, write to <reports/defense.md> in <language>:
 - Verdict: REBUTTED (the paper already answers it: quote the passage and give its

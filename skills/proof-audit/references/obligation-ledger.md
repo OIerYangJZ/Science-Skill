@@ -108,6 +108,7 @@ Task:
    mark it GAP.
 5. You may test claims numerically with small exact computations (rational
    arithmetic). A numerical check can refute a step; it cannot make it VALID.
+   Do not install software; if a check needs a missing package, say so.
 6. Before reporting a GAP or INVALID, look for an innocent explanation: a notation
    convention, a result proved earlier in the material, a hypothesis stated
    elsewhere in the material. State which ones you ruled out.

@@ -61,8 +61,9 @@ PLOT_FUNCS = {"set_title", "title", "suptitle", "text", "annotate", "set_xlabel"
 SEED_KW = {"seed", "random_state", "random_seed", "rng_seed"}
 RESULT_NAME = re.compile(r"(^|_)(results?|scores?|metrics?|acc|accuracy|auc|f1|precision|recall|loss|errors?|perf|"
                          r"performance|outputs?|preds?|predictions|y_pred|y_hat|ground_?truth|gt|labels?)(_|$)", re.I)
-METRIC_FUNC = re.compile(r"(accuracy|precision|recall|f1|auc|roc|score|metric|error|loss|bleu|rouge|rmse|mae|mse|"
-                         r"psnr|ssim|iou|map\b)", re.I)
+# Whole name tokens only ("roc_auc", "f1_macro", "accuracy_score"), so that "preprocess" does not match "roc".
+METRIC_FUNC = re.compile(r"(?:^|_)(accuracy|precision|recall|f1|auc|roc|auroc|score|scores|metric|metrics|error|errors|"
+                         r"loss|bleu|rouge|rmse|mae|mse|psnr|ssim|iou|map|brier|kappa|mcc)(?:_|$)", re.I)
 PLACEHOLDER = re.compile(r"\b(dummy|placeholder|fake|lorem ipsum|hard-?coded|mock(ed)? (data|result)s?)\b", re.I)
 PLACEHOLDER_NEG = re.compile(r"\b(no|not|non|without|replac\w*|remov\w*|instead of)\b|无|非|替换|去除|删除|不是", re.I)
 TODO_RX = re.compile(r"#\s*(TODO|FIXME|HACK|XXX)\b")

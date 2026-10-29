@@ -135,8 +135,13 @@ def family_name(author: str) -> str:
     return " ".join(toks[i:])
 
 
+# Letters that NFKD does not decompose into an ASCII base letter.
+TRANSLIT = str.maketrans({"ø": "o", "Ø": "O", "ł": "l", "Ł": "L", "đ": "d", "Đ": "D", "ß": "ss", "æ": "ae", "Æ": "AE",
+                          "œ": "oe", "Œ": "OE", "ı": "i", "þ": "th", "ð": "d"})
+
+
 def norm_name(s: str) -> str:
-    s = unicodedata.normalize("NFKD", s or "").encode("ascii", "ignore").decode().lower()
+    s = unicodedata.normalize("NFKD", (s or "").translate(TRANSLIT)).encode("ascii", "ignore").decode().lower()
     return re.sub(r"[^a-z ]+", "", s).strip()
 
 

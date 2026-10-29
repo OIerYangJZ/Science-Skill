@@ -13,7 +13,7 @@
 
 **English** · [简体中文](README.zh-CN.md)
 
-[Quick start](#quick-start) · [What it catches](#what-it-catches) · [Worked example](#worked-example) · [Skills](#skills-at-a-glance) · [Skill guide](#skill-guide) · [Pipelines](#using-the-skills-as-gates-in-automated-research-pipelines) · [FAQ](#faq)
+[Quick start](#quick-start) · [What it catches](#what-it-catches) · [Case study](#case-study) · [Skills](#skills-at-a-glance) · [Skill guide](#skill-guide) · [Pipelines](#using-the-skills-as-gates-in-automated-research-pipelines) · [FAQ](#faq)
 
 </div>
 
@@ -43,7 +43,7 @@ The skills are **discipline-agnostic**. They read LaTeX, Word, Markdown, plain-t
 
 - [Why this exists](#why-this-exists)
 - [What it catches](#what-it-catches)
-- [Worked example](#worked-example)
+- [Case study](#case-study)
 - [Quick start](#quick-start)
 - [Where the skills fit](#where-the-skills-fit)
 - [Skills at a glance](#skills-at-a-glance)
@@ -171,16 +171,17 @@ $ python3 skills/dead-end-ledger/scripts/ledger.py graph tests/fixtures/ledger.m
 - T2: extension to r=3
 ```
 
-## Worked example
+## Case study
 
-[`examples/synthetic-study/`](examples/synthetic-study/) is a complete run on an invented clinical-prediction paper with code, results and a bibliography, in which 16 problems were planted: leakage, tuning on the test split, unpaired seeds, placeholder calibration values, impossible statistics, number drift, a false "first" claim, a fabricated reference, defensive wording and more. The answer key was added only after the review had finished.
+[`examples/README.md`](examples/README.md) records a run on one of the author's own theory manuscripts: about 65 theorem-like results, all proofs in appendices, and one main theorem resting on an SMT-solver certificate. The run used every script, `/mock-review --quick` and a full `proof-audit`, with 10 subagents. Only the process and the aggregate results are public; the manuscript and the specific findings stay with the author.
 
-| Layer | Planted problems found | Missed |
-|---|---|---|
-| `/mock-review --quick`: attacker, defender, main-session verification | 14 fully, 1 partially (GRIM: the paper never says the stays are whole days) | Defensive wording (kill memos ignore wording by design) |
-| Scripts alone (`number_audit`, `integrity_scan`, `hedge_scan`, `refcheck`) | 13 fully, 2 partially | Causal language outside the editor-facing sections |
+| Layer | What it found |
+|---|---|
+| `/mock-review --quick` | The decisive objection concerned significance and framing (a title stronger than the theorems), not mathematics; the factual parts of all three kill arguments were confirmed in main-session verification |
+| `proof-audit` (7 step-check groups plus the solver part) | About 40 results and claims checked, no INVALID; most needed fixes that leave the statements unchanged; one main theorem has GAPs that can be closed, including a core inequality checked only by the solver |
+| Scripts | The reference check produced most of the library fixes: REVTeX `\href` DOIs, math in titles and special letters in author names had caused 29 of 57 references to be flagged; after the fixes, 2 remained, both real papers that the search missed |
 
-Together the two layers covered all 16. The review also found contradictions nobody had planted, for example a Brier score worse than predicting the prevalence for everyone. The run exposed 12 gaps in the library, which were fixed with regression tests. The memo, the defense, the verification record, the scorecard and the list of fixes are in the [example's README](examples/synthetic-study/README.md).
+The run also produced a process rule: a subagent had installed a solver package on its own, so review and audit prompts now forbid installing software.
 
 ## Quick start
 
@@ -1036,7 +1037,7 @@ Science-Skill/
 │       └── scripts/            standalone scripts
 ├── lib/                        shared modules: document reading, scholarly APIs, BibTeX/RIS, statistics
 ├── prompts/                    calibrated-writing prompts for use without Claude Code
-├── examples/synthetic-study/   a worked run with an answer key and a scorecard
+├── examples/README.md          a case study of a run on a real manuscript (process only)
 ├── tests/
 │   ├── run_tests.py            regression tests
 │   └── fixtures/               synthetic inputs with planted errors
@@ -1058,7 +1059,7 @@ python3 tests/run_tests.py -v         # verbose output
 
 GitHub Actions runs the offline tests on every push and pull request, on Python 3.10–3.14 under Linux and on Python 3.14 under macOS. The online tests run on demand: start the workflow manually with `online` checked.
 
-The fixtures in [`tests/fixtures/`](tests/fixtures/) are synthetic and contain planted errors: an impossible mean, an SD above its bound, a wrong percentage change, a p-value that does not match its statistic, defensive phrasing, a random draw inside a condition, a sentinel return, placeholder data, a dependency cycle in a ledger, a circular proof, a retracted dependency, and a fabricated reference. Each test checks that the planted errors are reported and that the clean controls next to them are not. Further tests pin what the scripts must find in the [worked example](#worked-example), and check repository conventions: every skill's frontmatter, its guide in both README files, and its row in `FAILURE_MODES.md`.
+The fixtures in [`tests/fixtures/`](tests/fixtures/) are synthetic and contain planted errors: an impossible mean, an SD above its bound, a wrong percentage change, a p-value that does not match its statistic, defensive phrasing, a random draw inside a condition, a sentinel return, placeholder data, a dependency cycle in a ledger, a circular proof, a retracted dependency, and a fabricated reference. Each test checks that the planted errors are reported and that the clean controls next to them are not. Further tests check repository conventions: every skill's frontmatter, its guide in both README files, and its row in `FAILURE_MODES.md`.
 
 ## Contributing
 

@@ -26,7 +26,7 @@ None of this is visible from the statements alone. It shows up only when every t
 2. **A step is checked only when someone checked it.** "Plausible", "standard" and "the solver says sat/unsat" are not verdicts. Every obligation gets a verdict from an explicit check: written verification, a counterexample search, an exact certificate, or a reference to a precise published statement (theorem number and edition).
 3. **Independence.** Step-check subagents read only the proof under review and the definitions and results it cites. They do not see author notes, ledgers, earlier reviews or this skill's working files.
 4. **Main-session verification.** Every GAP or INVALID verdict is re-checked by the main session before it is reported. Every critical finding states the innocent explanations it ruled out (a notation convention, a result proved elsewhere in the paper, a cited theorem).
-5. **Long computations need the user's go-ahead.** Estimate the runtime first, run in a scratch directory, and hand long jobs over with an ETA instead of polling.
+5. **Long computations and new software need the user's go-ahead.** Estimate the runtime first, run in a scratch directory, and hand long jobs over with an ETA instead of polling. Subagents do not install solvers or packages; a check that needs one is reported as not run until the user approves the installation.
 6. **Unchecked means unchecked.** Report what was not checked, explicitly. "No problems found" applies only to what was checked.
 7. Talk to the user and write reports in the user's language. Mathematics stays in LaTeX.
 
