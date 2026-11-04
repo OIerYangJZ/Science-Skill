@@ -264,7 +264,7 @@ flowchart LR
 | [`mock-review`](#mock-review) | Submission | Mock reviews that are not independent, not verified, or tied to a moving manuscript | Isolated, version-pinned pack; independent reports; cross-discussion; verification; prioritized joint report; quick kill-argument mode |
 | [`dead-end-ledger`](#dead-end-ledger) | Research | Sycophantic progress reports; repeated attempts at failed routes | Research ledger with graded results, routes, dependencies and barriers; idea cards; stop rules; lint and dependency graph |
 | [`group-meeting-deck`](#group-meeting-deck) | Research, presenting | Slides that rewrite the author, drift from the numbers, overstate progress or run over time | Evidence ledger; editable PowerPoint (and Beamer) in one of eight styles chosen from a gallery; checks of numbers, ledger statuses, counted timing, legibility |
-| [`research-poster`](#research-poster) | Presenting | Posters that strengthen or strip claims, drift from the numbers, or cannot be read or printed | Claim ledger; editable PowerPoint and print PDF at the board size in one of six styles chosen from a gallery; measured fit; checks; passer-by test |
+| [`research-poster`](#research-poster) | Presenting | Posters that strengthen or strip claims, drift from the numbers, or cannot be read or printed | Claim ledger; editable HTML master at the board size in one of six styles chosen from a gallery, re-exported to PDF after your edits; restyle; checks on the edited HTML; passer-by test |
 
 ## Design principles
 
@@ -343,7 +343,7 @@ Every report script takes `--lang en|zh` and exits with 0 when there is no confi
 | mock-review | `~/mock_review/<name>-<date>/` (outside the repository) | No |
 | dead-end-ledger | the ledger you name (e.g. `research/LEDGER.md`) and its notes | Only the ledger and the notes it manages |
 | group-meeting-deck | `deck/<date>/` | No; existing slide files are never overwritten |
-| research-poster | `poster/<date>/` | No |
+| research-poster | `poster/<date>/` | No; `poster.html` is yours to edit and is never rebuilt over your edits |
 
 Example of a finished `number-audit` run:
 
@@ -1016,14 +1016,14 @@ Options shared by `render`, `gallery` and `check`: `--palette accent=#0B5394`, `
 
 ### research-poster
 
-> A conference poster at the venue's board size, in a style you pick from a gallery of your own poster, saying what the paper says.
+> A conference poster whose master copy is editable HTML: change it by hand or in the browser and re-export. It is sized to the venue's board, styled from a gallery of your own poster, and says what the paper says.
 
 | | |
 |---|---|
 | **Use it when** | Preparing a poster for a conference, symposium or poster session (printed or digital) |
 | **Not for** | Slides (`group-meeting-deck`) |
 | **Reads** | The manuscript, results files, figures, logos; the venue's poster instructions page |
-| **Writes** | `poster/<date>/`: `poster.pptx` (one editable slide at the printed size), `poster.pdf` (print file), `preview.png`, `glance.png`, `claims.md`, `check.md` |
+| **Writes** | `poster/<date>/`: `poster.html` (the editable master) and `figures/`; exported from the HTML: `poster.pdf` (print file), `poster-preview.png`, `poster-glance.png`; `claims.md`, `check.md`; optionally `poster.pptx` (`--pptx`) |
 | **Stops for you** | Choosing the style; the board size when the venue page does not state it; changes to your own wording |
 | **Network** | The venue's official page (size and deadlines) |
 
@@ -1055,9 +1055,10 @@ Sizes: A0, A1, A2, A3, B1, `A0-landscape`, `48x36in`, `36x48in`, `42x36in`, `36x
 2. **Claim ledger:** takeaway, title, panel titles and every number, each with its source location and the condition that limits it.
 3. **Content spec:** 300–800 words; one finding per panel; `{col=N}` for reading order, `{footer}` for references, `{center}` for the billboard key figure.
 4. **Style choice** from the gallery.
-5. **Render** to PowerPoint and a print PDF. Text is fitted by measurement: it grows to 120% of the style size when there is room and shrinks to 72% when there is not.
-6. **Check:** numbers and claims against the source, overflow, body text below 24 pt at A0 (scaled), figures below 100 px/in at print size, contrast, colour-vision safety, missing takeaway, size or orientation beyond the board.
-7. **Passer-by test:** a subagent that sees only `glance.png`, then `preview.png`, says what it takes away; the main session compares that with the claim ledger.
+5. **Render the HTML master**, then export the PDF and previews from it. The HTML fits its own text whenever it is opened: up to 120% of the style size when there is room, down to 72% when there is not.
+6. **Your edits:** change `poster.html` in the browser (toolbar: Edit text → Save HTML) or in any editor, or ask Claude; then `export` again. `restyle` switches style and keeps the content; `render` never overwrites your HTML.
+7. **Check, on the HTML you edited:** numbers and claims against the source, overflow, body text below 24 pt at A0 (scaled), figures below 100 px/in at print size, contrast, colour-vision safety, missing takeaway, size or orientation beyond the board.
+8. **Passer-by test:** a subagent that sees only `poster-glance.png`, then `poster-preview.png`, says what it takes away; the main session compares that with the claim ledger.
 
 **Scripts**
 
@@ -1066,15 +1067,19 @@ P=skills/research-poster/scripts/poster.py
 python3 $P styles; python3 $P sizes
 python3 $P init --template empirical --size A0 --out poster/today/poster.md
 python3 $P gallery examples/demo/poster.md --out /tmp/pgallery
-python3 $P render examples/demo/poster.md --style billboard --size A0-landscape --out /tmp/poster
-python3 $P check examples/demo/poster.md --max-size 841x1189mm --out /tmp/poster   # exit 1 while a FAIL remains
+python3 $P render examples/demo/poster.md --style classic --out /tmp/poster      # -> /tmp/poster/poster.html (+ PDF, PNG)
+#   ... edit /tmp/poster/poster.html in a browser or editor ...
+python3 $P export /tmp/poster/poster.html                                         # PDF + previews from your edited HTML
+python3 $P restyle /tmp/poster/poster.html --style dark                           # same content -> poster-dark.html
+python3 $P gallery /tmp/poster/poster.html --out /tmp/pgallery                    # every column style with your edits
+python3 $P check /tmp/poster/poster.html --max-size 841x1189mm --out /tmp/poster   # exit 1 while a FAIL remains
 ```
 
-Spec format: [`references/spec-format.md`](skills/research-poster/references/spec-format.md); styles and typography: [`references/styles.md`](skills/research-poster/references/styles.md); check codes: [`references/checks.md`](skills/research-poster/references/checks.md).
+Editing the HTML (structure, CSS variables, moving sections, exporting from the browser): [`references/editing.md`](skills/research-poster/references/editing.md); spec format: [`references/spec-format.md`](skills/research-poster/references/spec-format.md); styles and typography: [`references/styles.md`](skills/research-poster/references/styles.md); check codes: [`references/checks.md`](skills/research-poster/references/checks.md).
 
-**Tips.** Export figures as PDF or SVG, or as PNG at 300 px/in at their printed width. The QR code is an image you supply. The `.pptx` is the editable master; print from `poster.pdf` after checking it at 100% zoom, because PowerPoint substitutes fonts that are not installed.
+**Tips.** Export figures as PDF or SVG, or as PNG at 300 px/in at their printed width (PDF figures are converted to SVG so the browser can show them). The QR code is an image you supply. The browser's own Print → Save as PDF also works (margins None, background graphics on; the size comes from the CSS `@page` rule). Formulas use MathJax from a CDN, so viewing and exporting a poster with formulas need a network connection.
 
-**Rendering tools (optional, for both skills).** Headless Chrome or Chromium measures text and produces the PDF and previews. Without it, layout uses an estimate and you should check the `.pptx` by eye. LaTeX (pdflatex/xelatex) renders display formulas and compiles Beamer. Poppler (`pdftoppm`) makes PNG previews. On macOS, Quick Look previews the `.pptx` itself. Nothing is installed by the skills.
+**Rendering tools (optional, for both skills).** Headless Chrome or Chromium measures text and produces the PDF and previews. Without it, slide layout uses an estimate, and for posters overflow and text size are not checked (open the HTML in any browser to see it). LaTeX (pdflatex/xelatex) renders display formulas and compiles Beamer. Poppler (`pdftoppm`) makes PNG previews. On macOS, Quick Look previews the `.pptx` itself. Nothing is installed by the skills.
 
 ---
 
@@ -1135,7 +1140,7 @@ flowchart LR
 | `mock-review/scripts/review_pack.py` | `pack`, `check-pin` | Isolated, pinned review packs; detection of manuscript changes |
 | `dead-end-ledger/scripts/ledger.py` | `init`, `search`, `card`, `graph`, `lint`, `status` | Ledger creation, duplicate search, idea cards, dependency graph, checks |
 | `group-meeting-deck/scripts/deck.py` | `styles`, `templates`, `init`, `render`, `gallery`, `check` | Slides from a Markdown spec: PowerPoint, Beamer, previews, style gallery; checks (exit 1 on FAIL) |
-| `research-poster/scripts/poster.py` | `styles`, `sizes`, `init`, `render`, `gallery`, `check` | Posters from a Markdown spec: PowerPoint, print PDF, previews, style gallery; checks (exit 1 on FAIL) |
+| `research-poster/scripts/poster.py` | `styles`, `sizes`, `init`, `render`, `export`, `restyle`, `gallery`, `check` | Posters as editable HTML from a Markdown spec; PDF and previews exported from the (edited) HTML; restyle keeping content; style gallery; checks on the HTML (exit 1 on FAIL) |
 
 Every script prints help with `--help`. Run the scripts that read downloaded content with `python3 -I`.
 
@@ -1150,7 +1155,7 @@ Every script prints help with `--help`. Run the scripts that read downloaded con
 | Statistics | Inline APA-style reports (`t(23) = 2.45, p = .02`, `F(2, 45) = 3.21, p < .05`, `χ2(1) = 3.84, p = .05`, `r(46) = .32, p = .03`, `z = 1.96, p = .05`); `k of n (x%)`; OR / RR / HR with 95% CI; `M = 3.48, n = 15` and `x% (n = 28)` (GRIM); `mean ± SD`; "from A to B, a C% / C-fold / C-point change" |
 | Proofs | LaTeX theorem-like environments (including `\newtheorem` and `\declaretheorem`), proof environments, `\ref`-family references, xr `\externaldocument` |
 | Code (integrity scan) | Python (AST); R, Julia, MATLAB, shell (regex) |
-| Slides and posters | A Markdown content spec ([format](skills/group-meeting-deck/references/spec-format.md)); figures in PNG, JPEG, GIF, SVG or PDF; output `.pptx`, Beamer `.tex`, PDF |
+| Slides and posters | A Markdown content spec ([format](skills/group-meeting-deck/references/spec-format.md)); figures in PNG, JPEG, GIF, SVG or PDF; output `.pptx`, Beamer `.tex`, PDF; posters as editable `.html` (checked and exported from the HTML) |
 
 ## Data sources and privacy
 

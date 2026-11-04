@@ -264,7 +264,7 @@ flowchart LR
 | [`mock-review`](#mock-review) | 投稿 | 模拟审稿不独立、不复核，稿件版本也不固定 | 隔离并锁定版本的审稿副本；独立报告；交叉讨论；核实；按优先级排序的联合报告；快速的致命论点模式 |
 | [`dead-end-ledger`](#dead-end-ledger) | 研究 | 讨好式的进展汇报；反复尝试已经失败的路线 | 研究账本：分级的结果、路线、依赖关系和障碍；想法卡片；止损规则；格式检查与依赖图 |
 | [`group-meeting-deck`](#group-meeting-deck) | 研究、汇报 | 幻灯片改写作者原意、数字走样、夸大进展或超时 | 证据台账；从样张中选定八种风格之一的可编辑 PowerPoint（及 Beamer）；数字、账本状态、计时与可读性检查 |
-| [`research-poster`](#research-poster) | 汇报 | 海报把主张说强或丢掉条件、数字走样、看不清或无法印刷 | 主张台账；从样张中选定六种风格之一、按展板尺寸生成的可编辑 PowerPoint 和印刷 PDF；实测排版；检查；路人测试 |
+| [`research-poster`](#research-poster) | 汇报 | 海报把主张说强或丢掉条件、数字走样、看不清或无法印刷 | 主张台账；按展板尺寸、从样张中选定六种风格之一的可编辑 HTML 母版，修改后重新导出 PDF；换风格保留内容；对修改后的 HTML 做检查；路人测试 |
 
 ## 设计原则
 
@@ -343,7 +343,7 @@ claude --plugin-dir /path/to/Science-Skill
 | mock-review | `~/mock_review/<名称>-<日期>/`（仓库之外） | 不会 |
 | dead-end-ledger | 你指定的账本（如 `research/LEDGER.md`）及其笔记 | 只改账本和它所管理的笔记 |
 | group-meeting-deck | `deck/<日期>/` | 否；从不覆盖已有的幻灯片文件 |
-| research-poster | `poster/<日期>/` | 否 |
+| research-poster | `poster/<日期>/` | 否；`poster.html` 归你修改，不会在你修改后被重新生成覆盖 |
 
 一次 `number-audit` 运行结束后的目录示例：
 
@@ -1016,14 +1016,14 @@ python3 $D check examples/demo/deck.md --minutes 12 --out /tmp/deck    # 仍有 
 
 ### research-poster
 
-> 会议海报：尺寸取自会场的展板，风格从你自己海报的样张中挑选，说的内容与论文一致。
+> 会议海报，母版是可编辑的 HTML：你可以手改或在浏览器里改，再重新导出。尺寸取自会场展板，风格从你自己海报的样张中挑选，说的内容与论文一致。
 
 | | |
 |---|---|
 | **适用场景** | 为会议、研讨会或海报环节准备海报（打印或电子） |
 | **不适用** | 幻灯片（用 `group-meeting-deck`） |
 | **读取** | 稿件、结果文件、图片、标志；会场的海报要求页面 |
-| **写出** | `poster/<日期>/`：`poster.pptx`（印刷尺寸的单页可编辑文件）、`poster.pdf`（印刷文件）、`preview.png`、`glance.png`、`claims.md`、`check.md` |
+| **写出** | `poster/<日期>/`：`poster.html`（可编辑的母版）和 `figures/`；从 HTML 导出的 `poster.pdf`（印刷文件）、`poster-preview.png`、`poster-glance.png`；`claims.md`、`check.md`；可选 `poster.pptx`（`--pptx`） |
 | **需要你决定** | 选择风格；会场页面没写尺寸时的展板尺寸；你自己措辞的修改 |
 | **网络** | 会场官方页面（尺寸与截止日期） |
 
@@ -1055,9 +1055,10 @@ python3 $D check examples/demo/deck.md --minutes 12 --out /tmp/deck    # 仍有 
 2. **主张台账：** 一句话结论、标题、各版块标题和每个数字，都附来源位置和限制条件。
 3. **内容稿：** 300–800 词；每个版块一个发现；`{col=N}` 规定阅读顺序，`{footer}` 放参考文献，`{center}` 放 billboard 风格的关键图。
 4. **从样张中选风格。**
-5. **渲染**为 PowerPoint 和印刷用 PDF。文字按实测排版：有空间时最多放大到风格字号的 120%，放不下时最多缩小到 72%。
-6. **检查：** 数字和主张与来源核对、溢出、正文小于 A0 上 24 磅（按尺寸缩放）、印刷尺寸下图片低于 100 px/in、对比度、色觉友好、缺少一句话结论、尺寸或方向超出展板。
-7. **路人测试：** 一个子代理先只看 `glance.png`，再看 `preview.png`，说出它读到了什么；主会话与主张台账对照。
+5. **生成 HTML 母版**，再由它导出 PDF 和预览图。每次打开 HTML 时页面都会自动适配文字：有空间时最多放大到风格字号的 120%，放不下时最多缩小到 72%。
+6. **你的修改：** 在浏览器里改 `poster.html`（工具栏：Edit text → Save HTML），或用任何编辑器改，或者让 Claude 改；然后重新 `export`。`restyle` 换风格但保留内容；`render` 不会覆盖你的 HTML。
+7. **检查（针对你修改后的 HTML）：** 数字和主张与来源核对、溢出、正文小于 A0 上 24 磅（按尺寸缩放）、印刷尺寸下图片低于 100 px/in、对比度、色觉友好、缺少一句话结论、尺寸或方向超出展板。
+8. **路人测试：** 一个子代理先只看 `poster-glance.png`，再看 `poster-preview.png`，说出它读到了什么；主会话与主张台账对照。
 
 **脚本**
 
@@ -1066,15 +1067,19 @@ P=skills/research-poster/scripts/poster.py
 python3 $P styles; python3 $P sizes
 python3 $P init --template empirical --size A0 --out poster/today/poster.md
 python3 $P gallery examples/demo/poster.md --out /tmp/pgallery
-python3 $P render examples/demo/poster.md --style billboard --size A0-landscape --out /tmp/poster
-python3 $P check examples/demo/poster.md --max-size 841x1189mm --out /tmp/poster   # 仍有 FAIL 时退出码为 1
+python3 $P render examples/demo/poster.md --style classic --out /tmp/poster      # -> /tmp/poster/poster.html（及 PDF、PNG）
+#   ……在浏览器或编辑器里修改 /tmp/poster/poster.html……
+python3 $P export /tmp/poster/poster.html                                         # 从修改后的 HTML 导出 PDF 和预览
+python3 $P restyle /tmp/poster/poster.html --style dark                           # 内容不变 -> poster-dark.html
+python3 $P gallery /tmp/poster/poster.html --out /tmp/pgallery                    # 用你改过的内容展示每种分栏风格
+python3 $P check /tmp/poster/poster.html --max-size 841x1189mm --out /tmp/poster   # 仍有 FAIL 时退出码为 1
 ```
 
-内容稿格式见 [`references/spec-format.md`](skills/research-poster/references/spec-format.md)，风格与字号见 [`references/styles.md`](skills/research-poster/references/styles.md)，检查代码见 [`references/checks.md`](skills/research-poster/references/checks.md)。
+HTML 的修改方法（结构、CSS 变量、移动版块、从浏览器导出）见 [`references/editing.md`](skills/research-poster/references/editing.md)，内容稿格式见 [`references/spec-format.md`](skills/research-poster/references/spec-format.md)，风格与字号见 [`references/styles.md`](skills/research-poster/references/styles.md)，检查代码见 [`references/checks.md`](skills/research-poster/references/checks.md)。
 
-**提示。** 图片导出为 PDF 或 SVG，或按印刷宽度 300 px/in 导出 PNG。二维码图片需要你自己提供。`.pptx` 是可编辑的母版；PowerPoint 会替换本机没有安装的字体，所以先以 100% 比例检查 `poster.pdf`，再用它付印。
+**提示。** 图片导出为 PDF 或 SVG，或按印刷宽度 300 px/in 导出 PNG（PDF 图片会转成 SVG，以便浏览器显示）。二维码图片需要你自己提供。也可以直接用浏览器的“打印 → 存储为 PDF”（边距选“无”，勾选“背景图形”；尺寸由 CSS 的 `@page` 决定）。公式用 CDN 上的 MathJax 渲染，所以含公式的海报在查看和导出时需要联网。
 
-**渲染工具（可选，两个技能通用）。** 无头 Chrome 或 Chromium 用于测量文字、生成 PDF 和预览；没有它时排版用估算值，需要你亲眼检查 `.pptx`。LaTeX（pdflatex/xelatex）用于渲染行间公式和编译 Beamer。Poppler（`pdftoppm`）用于生成 PNG 预览。在 macOS 上，快速查看可以直接预览 `.pptx`。技能不会安装任何软件。
+**渲染工具（可选，两个技能通用）。** 无头 Chrome 或 Chromium 用于测量文字、生成 PDF 和预览；没有它时，幻灯片排版用估算值；海报则不检查溢出和字号（用任意浏览器打开 HTML 查看即可）。LaTeX（pdflatex/xelatex）用于渲染行间公式和编译 Beamer。Poppler（`pdftoppm`）用于生成 PNG 预览。在 macOS 上，快速查看可以直接预览 `.pptx`。技能不会安装任何软件。
 
 ---
 
@@ -1135,7 +1140,7 @@ flowchart LR
 | `mock-review/scripts/review_pack.py` | `pack`、`check-pin` | 隔离并锁定版本的审稿副本；检测稿件改动 |
 | `dead-end-ledger/scripts/ledger.py` | `init`、`search`、`card`、`graph`、`lint`、`status` | 建立账本、查重、想法卡片、依赖图、检查 |
 | `group-meeting-deck/scripts/deck.py` | `styles`、`templates`、`init`、`render`、`gallery`、`check` | 由 Markdown 内容稿生成幻灯片：PowerPoint、Beamer、预览、风格样张；检查（有 FAIL 时退出码为 1） |
-| `research-poster/scripts/poster.py` | `styles`、`sizes`、`init`、`render`、`gallery`、`check` | 由 Markdown 内容稿生成海报：PowerPoint、印刷 PDF、预览、风格样张；检查（有 FAIL 时退出码为 1） |
+| `research-poster/scripts/poster.py` | `styles`、`sizes`、`init`、`render`、`export`、`restyle`、`gallery`、`check` | 由 Markdown 内容稿生成可编辑的 HTML 海报；从（修改后的）HTML 导出 PDF 和预览；保留内容换风格；风格样张；对 HTML 做检查（有 FAIL 时退出码为 1） |
 
 每个脚本都可以用 `--help` 查看说明。会读取下载内容的脚本，请用 `python3 -I` 运行。
 
@@ -1150,7 +1155,7 @@ flowchart LR
 | 统计量 | 正文中的 APA 风格报告（`t(23) = 2.45, p = .02`、`F(2, 45) = 3.21, p < .05`、`χ2(1) = 3.84, p = .05`、`r(46) = .32, p = .03`、`z = 1.96, p = .05`）；`k of n (x%)`；带 95% 置信区间的 OR / RR / HR；`M = 3.48, n = 15` 和 `x% (n = 28)`（GRIM）；`均值 ± 标准差`；"from A to B, a C% / C-fold / C-point change" |
 | 证明 | LaTeX 定理类环境（包括 `\newtheorem` 和 `\declaretheorem` 声明的环境）、proof 环境、`\ref` 系列引用、xr 包的 `\externaldocument` |
 | 代码（integrity 扫描） | Python（语法树分析）；R、Julia、MATLAB、shell（正则） |
-| 幻灯片与海报 | Markdown 内容稿（[格式](skills/group-meeting-deck/references/spec-format.md)）；图片为 PNG、JPEG、GIF、SVG 或 PDF；输出 `.pptx`、Beamer `.tex`、PDF |
+| 幻灯片与海报 | Markdown 内容稿（[格式](skills/group-meeting-deck/references/spec-format.md)）；图片为 PNG、JPEG、GIF、SVG 或 PDF；输出 `.pptx`、Beamer `.tex`、PDF；海报为可编辑的 `.html`（检查和导出都基于 HTML） |
 
 ## 数据来源与隐私
 

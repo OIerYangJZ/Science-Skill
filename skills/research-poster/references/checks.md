@@ -1,5 +1,7 @@
 # Check codes (`poster.py check`)
 
+`check` reads `poster.html` (including your edits) and measures it in headless Chrome; given a `.md` spec it first builds a temporary HTML.
+
 The exit code is 1 when any FAIL remains, otherwise 0. Every finding is a lead to read in context.
 
 | Code | Level | Meaning | Typical fix |
@@ -21,4 +23,5 @@ The exit code is 1 when any FAIL remains, otherwise 0. Every finding is a lead t
 | CVD | WARN | Accent colours that collapse under a colour-vision deficiency | Do not let colour alone carry meaning |
 | IMG-RESOLUTION | FAIL (< 100 px/in), WARN (< 150 px/in) | Raster figure too coarse at its printed size | Export at 300 px/in at the printed size, or as PDF/SVG |
 | IMG-MISSING, IMG-UNREADABLE, IMG-CONVERT | FAIL | A figure or logo cannot be used | Fix the path or export PNG/PDF |
+| NOT-MEASURED | INFO | Chrome is not available: overflow and text size were not checked; figure resolution was estimated from the column width | Install or point `SCIENCE_SKILL_CHROME` to Chrome/Chromium/Edge, or open the HTML and look |
 | STATUS-* | as for slides | With `--ledger`, status chips are checked against dead-end-ledger | |

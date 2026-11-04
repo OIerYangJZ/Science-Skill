@@ -17,8 +17,9 @@ python3 $D gallery examples/demo/deck.md --out /tmp/demo-gallery        # every 
 python3 $D render examples/demo/deck.md --style metropolis --format pptx,tex --out /tmp/demo-deck
 python3 $D check examples/demo/deck.md --out /tmp/demo-deck             # FAIL 0 · WARN 0; talk ≈ 8.2 min
 python3 $P gallery examples/demo/poster.md --out /tmp/demo-pgallery     # every poster style
-python3 $P render examples/demo/poster.md --style billboard --out /tmp/demo-poster
-python3 $P check examples/demo/poster.md --out /tmp/demo-poster         # FAIL 0; INFO SPARSE (little content)
+python3 $P render examples/demo/poster.md --style billboard --out /tmp/demo-poster   # -> poster.html (editable) + PDF
+python3 $P export /tmp/demo-poster/poster.html                          # after editing the HTML
+python3 $P check /tmp/demo-poster/poster.html --out /tmp/demo-poster    # checks the HTML you edited
 ```
 
 The style galleries in the main README (`docs/img/`) were rendered from these two files.

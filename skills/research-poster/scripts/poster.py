@@ -1,29 +1,23 @@
 #!/usr/bin/env python3
-"""poster.py - build and check a research poster from a Markdown content spec.
+"""poster.py - build, export and check a research poster whose master copy is an editable HTML file.
 
-Content and style are separate: the spec (see lib/slidespec.py) holds what the poster says; a style says
-how it looks. The same spec renders in every style, so styles can be compared side by side.
+A Markdown content spec (see lib/slidespec.py) is rendered once into poster.html: plain HTML and CSS that
+you edit by hand or in the browser (toolbar: Edit text, Save HTML, Re-fit, Print). The PDF and previews
+are always exported from the HTML, so they contain your edits. See references/editing.md.
 
 Usage
-  poster.py styles                                  list the visual styles
-  poster.py sizes                                   list the size presets
+  poster.py styles | sizes
   poster.py init --template empirical --size A0 [--lang zh] --out poster.md
-  poster.py render poster.md [--style classic] [--size A0-landscape] --out poster/2026-11-04
-  poster.py gallery poster.md [--styles classic,billboard] --out poster/2026-11-04/gallery
-  poster.py check poster.md [--source paper.tex results.csv] [--max-size 841x1189mm] --out DIR
+  poster.py render poster.md [--style classic] [--size A0-landscape] --out DIR    -> DIR/poster.html + PDF/PNG
+  poster.py export DIR/poster.html                    PDF + preview PNGs from the HTML as it is now
+  poster.py restyle DIR/poster.html --style dark      same content, another style -> poster-dark.html
+  poster.py gallery poster.md|poster.html --out DIR   every style with your content, side by side
+  poster.py check DIR/poster.html [--source paper.tex results.csv] [--max-size 841x1189mm] --out DIR
 
-render writes <stem>.pptx (one editable slide at the printed size), <stem>.pdf (print file from the
-layout twin via headless Chrome, when installed), preview.png and glance.png (the poster at the size a
-passer-by sees it from a few metres, for the readability test).
-
-Spec specifics: panels are '## ' headings. {col=N} pins a panel to column N; {footer} sends it to the
-footer band; in the billboard style {center} puts a panel under the takeaway in the centre column.
-Front matter: title, authors, affiliations, contact, venue, takeaway, logos (comma list), qr (an image),
-size, style, palette, source.
-
-check exits 1 when a FAIL remains: a placeholder, a number not in the sources, text that does not fit,
-body text below the readable minimum, a missing or low-resolution figure, unreadable contrast, a
-billboard without a takeaway, or a poster larger than the venue allows.
+render never overwrites an existing poster.html (it may contain your edits) unless --force; --pptx also
+writes a PowerPoint version built from the spec. check exits 1 while a FAIL remains: a placeholder, a
+number not in the sources, overflow, text below the readable minimum, a missing or low-resolution figure,
+unreadable contrast, a billboard without a takeaway, or a poster larger than the venue's board.
 """
 from __future__ import annotations
 
@@ -44,6 +38,7 @@ import slidekit as sk           # noqa: E402
 import slidespec as ss          # noqa: E402
 import poster_styles as PS      # noqa: E402
 import poster_templates as PT   # noqa: E402
+import poster_html as PH        # noqa: E402
 
 A0_SHORT = 841 / 25.4
 
@@ -532,48 +527,103 @@ def cmd_init(args):
     return 0
 
 
+def _report_lines(rep: dict) -> list[str]:
+    if not rep:
+        return []
+    out = [f"text scale {rep.get('scale', 1):.0%}, body text {rep.get('body_pt')} pt"]
+    if rep.get("overflow"):
+        out.append(f"OVERFLOW in {', '.join(rep['overflow'])}: cut words or move a section")
+    return out
+
+
 def cmd_render(args):
     spec = ss.parse(args.spec)
     st = style_for(spec, args)
-    p = Poster(spec, st, size_for(spec, args), args.out, args.math)
-    p.build()
-    stem = os.path.splitext(os.path.basename(args.spec))[0] or "poster"
-    res = render_files(p, spec, args.out, stem, not args.no_preview)
-    with open(os.path.join(args.out, "layout.json"), "w", encoding="utf-8") as fh:
-        json.dump({"info": p.info, "issues": p.ctx.issues, "overflow_twin": res["overflow"], "style": st["name"],
-                   "placed": p.ctx.placed}, fh, ensure_ascii=False, indent=1, default=str)
-    for f in res["files"]:
+    size = size_for(spec, args)
+    os.makedirs(args.out, exist_ok=True)
+    html_path = os.path.join(args.out, "poster.html")
+    if os.path.exists(html_path) and not args.force:
+        raise SystemExit(f"{html_path} exists and may contain your edits; export it with 'poster.py export', "
+                         "change its style with 'poster.py restyle', or pass --force to rebuild from the spec")
+    path, missing = PH.build(spec, st, size, args.out, args.math)
+    print("wrote", path, "(editable master: edit it, then run poster.py export)")
+    for m in missing:
+        print("FAIL IMG-MISSING:", m)
+    if not args.no_preview:
+        rep, files, notes = PH.export(path, args.out)
+        for f in files:
+            print("wrote", f)
+        for n in notes:
+            print("note:", n)
+        for line in _report_lines(rep):
+            print(line)
+    if args.pptx:
+        p = Poster(spec, st, size, os.path.join(args.out, ".pptx-build"), args.math)
+        p.build()
+        pp = os.path.join(args.out, "poster.pptx")
+        p.pres.save(pp)
+        print("wrote", pp, "(built from the spec; edits made in the HTML are not in it)")
+    return 0
+
+
+def cmd_export(args):
+    rep, files, notes = PH.export(args.html, args.out)
+    for f in files:
         print("wrote", f)
-    for n in res["notes"]:
+    for n in notes:
         print("note:", n)
-    for lv, code, msg in p.ctx.issues:
-        print(f"{lv} {code}: {msg}")
-    for o in res["overflow"]:
-        print(f"FAIL OVERFLOW: text box '{o.split(':', 1)[-1]}' in the rendered preview")
-    print(f"body text {p.info['body_pt']} pt (text scale {p.info['scale']:.0%}) on "
-          f"{p.W * 25.4:.0f} x {p.H * 25.4:.0f} mm")
+    for line in _report_lines(rep):
+        print(line)
+    return 1 if (rep.get("overflow") or not files) else 0
+
+
+def cmd_restyle(args):
+    with open(args.html, encoding="utf-8") as fh:
+        doc = fh.read()
+    st = PS.get(args.style, parse_palette(args.palette), args.font)
+    size = PS.parse_size(args.size) if args.size else None
+    new = PH.restyle(doc, st, size)
+    out = args.html if args.in_place else (args.out or os.path.splitext(args.html)[0] + f"-{args.style}.html")
+    with open(out, "w", encoding="utf-8") as fh:
+        fh.write(new)
+    print("wrote", out)
     return 0
 
 
 def cmd_gallery(args):
-    spec = ss.parse(args.spec)
+    src_html = args.spec.lower().endswith((".html", ".htm"))
+    spec = None if src_html else ss.parse(args.spec)
     names = [s.strip() for s in args.styles.split(",")] if args.styles else list(PS.STYLES)
-    size = size_for(spec, args)
     os.makedirs(args.out, exist_ok=True)
     rows = []
     for name in names:
-        st = PS.get(name, parse_palette(spec.get("palette")) | parse_palette(args.palette), args.font)
+        st = PS.get(name, parse_palette(spec.get("palette") if spec else None) | parse_palette(args.palette), args.font)
         sd = os.path.join(args.out, name)
-        p = Poster(copy.deepcopy(spec), st, size, sd, args.math)
-        p.build()
-        res = render_files(p, spec, sd, "sample", True)
-        png = os.path.join(sd, "preview.png")
-        rows.append((name, st, png if os.path.exists(png) else None))
-        print(f"{name}: {os.path.join(sd, 'sample.pptx')}" + ("" if os.path.exists(png) else
-                                                             f" (no preview: {'; '.join(res['notes'])})"))
-    W, H = size
+        os.makedirs(sd, exist_ok=True)
+        if src_html:
+            doc = open(args.spec, encoding="utf-8").read()
+            try:
+                doc = PH.restyle(doc, st)
+            except SystemExit as e:
+                print(f"{name}: skipped ({e})")
+                continue
+            # keep figure paths valid: write next to the original
+            path = os.path.join(os.path.dirname(os.path.abspath(args.spec)), f".gallery-{name}.html")
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(doc)
+        else:
+            path, _missing = PH.build(copy.deepcopy(spec), st, size_for(spec, args), sd, args.math, "sample.html")
+        rep, files, notes = PH.export(path, sd)
+        if src_html:
+            os.remove(path)          # a preview only; restyle writes a real copy when you choose a style
+        png = next((f for f in files if f.endswith("-preview.png")), None)
+        rows.append((name, st, png))
+        print(f"{name}: {png or os.path.join(sd, 'sample.html')}" + ("" if png else f" (no preview: {'; '.join(notes)})"))
+    if not rows:
+        return 1
+    W, Hh = (spec and size_for(spec, args)) or (841, 1189)
     cw = 360
-    ch = cw * H / W
+    ch = cw * Hh / W
     cards = "".join(f'<div class="c"><img src="file://{os.path.abspath(png)}" style="width:{cw}px;height:{ch:.0f}px">'
                     f'<b>{name}</b> · {st["label"]}<p>{st["summary"]}</p><p><i>Best for:</i> {st["best_for"]}</p></div>'
                     if png else f'<div class="c"><b>{name}</b> (no preview)</div>' for name, st, png in rows)
@@ -581,12 +631,12 @@ def cmd_gallery(args):
     nrow = (len(rows) + per_row - 1) // per_row
     page_w = per_row * (cw + 30) + 40
     page_h = nrow * (ch + 190) + 90
+    title = ss.runs_text(ss.inline(spec.get("title", ""))) if spec else os.path.basename(args.spec)
     doc = (f'<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{{size:{page_w}px {page_h:.0f}px;margin:0}}'
            "body{font-family:Arial,'PingFang SC',sans-serif;margin:20px;color:#222}.g{display:flex;flex-wrap:wrap}"
            f".c{{width:{cw}px;margin:0 30px 22px 0;font-size:12.5px}}.c img{{border:1px solid #CCC;display:block;"
            "margin-bottom:6px}.c p{margin:3px 0}.c b{font-size:15px}</style></head><body>"
-           f"<h2 style='margin:0 0 14px'>Poster styles: {ss.runs_text(ss.inline(spec.get('title', '')))}</h2>"
-           f"<div class='g'>{cards}</div></body></html>")
+           f"<h2 style='margin:0 0 14px'>Poster styles: {title}</h2><div class='g'>{cards}</div></body></html>")
     gh = os.path.join(args.out, "gallery.html")
     with open(gh, "w", encoding="utf-8") as fh:
         fh.write(doc)
@@ -600,95 +650,139 @@ def cmd_gallery(args):
     return 0
 
 
-def cmd_check(args):
-    spec = ss.parse(args.spec)
-    st = style_for(spec, args)
-    size = size_for(spec, args)
-    work = os.path.join(args.out, ".check-build")
-    p = Poster(spec, st, size, work, args.math)
-    p.build()
-    html = os.path.join(work, "twin.html")
-    os.makedirs(work, exist_ok=True)
-    p.pres.to_html(html)
-    f = dc.Findings()
-    lang = args.lang or ("zh" if dk.has_cjk(ss.visible_text(spec)) else "en")
-    dom, _err = dk.html_dump_dom(html, 6000)
-    if dom:
-        m = re.search(r'data-overflow="([^"]*)"', dom)
-        for o in [x for x in (m.group(1).split(";") if m else []) if x]:
-            f.add("FAIL", "OVERFLOW", o.split(":", 1)[-1].rsplit(":", 1)[0], f"text box needs "
-                  f"{o.rsplit(':', 1)[-1]} of its height in the rendered preview")
-    for lv, code, msg in p.ctx.issues:
-        f.add(lv, code, "layout", msg)
+def _pairs_from_vars(v: dict, billboard: bool) -> list[tuple[str, str, str, bool]]:
+    def c(name, fallback=None):
+        x = (v.get(name) or "").strip()
+        return x if dk.is_hex(x) else fallback
+    bg = c("bg", "#FFFFFF")
+    panel = c("panel-bg", bg)
+    head = c("header-bg", bg)
+    pairs = [("body text", c("fg"), panel, False), ("muted text and captions", c("muted"), panel, False),
+             ("links", c("link"), panel, False), ("title", c("header-fg"), head, True),
+             ("authors and affiliations", c("header-sub-fg"), head, False),
+             ("section headings", c("panel-title-fg"), c("panel-title-bg", panel), True),
+             ("table header", c("table-head-fg"), c("table-head-bg"), False), ("footer", c("footer-fg"), bg, False)]
+    if billboard:
+        pairs += [("takeaway", c("center-fg"), c("center-bg"), True), ("takeaway highlight", c("accent2"), c("center-bg"),
+                                                                       True)]
+    return [p for p in pairs if p[1] and p[2]]
 
-    def where(b):
-        return f"panel '{b.title_text[:40]}'"
-    vis = [("front matter", "\n".join(str(spec.meta.get(x, "")) for x in ss.VISIBLE_META + ("logos", "qr")
-                                      if spec.meta.get(x)))]
-    vis += [(where(b), ss.block_text(b)) for b in spec.blocks]
-    dc.check_placeholders(f, vis, "FAIL")
+
+def check_html(path: str, args, f: dc.Findings) -> dict:
+    r = PH.read(path)
+    base = os.path.dirname(os.path.abspath(path))
+    rep, err = PH.inspect(path)
+    page = r["page_mm"] or (841, 1189)
+    u = min(page) / 841.0
+    name = r["meta"].get("style", "classic")
+    st = PS.STYLES.get(name, PS.STYLES["classic"])
+    # text: placeholders, numbers, claims, words
+    where_text = [("header", r["header"])] + ([("takeaway", r["takeaway"])] if r["billboard"] else []) + \
+        [(f"section '{s['title'][:40]}'", s["title"] + "\n" + s["text"]) for s in r["sections"]] + [("footer", r["footer"])]
+    dc.check_placeholders(f, where_text, "FAIL")
     sources = list(args.source or [])
-    if not sources and spec.get("source") and not dk.placeholders(spec.get("source")):
-        sources = [spec.resolve(x.strip()) for x in spec.get("source").split(",")]
+    if not sources and r["meta"].get("source"):
+        sources = [os.path.normpath(os.path.join(base, x.strip())) for x in r["meta"]["source"].split(",") if x.strip()]
+    body = [x for x in where_text if x[0] != "footer"]
     if sources:
         src_text, errs = dc.load_sources(sources)
         for e in errs:
             f.add("WARN", "SOURCE", "sources", e)
         if src_text:
-            body = [(w, t) for w, t in vis if not any(b.attrs.get("footer") and where(b) == w for b in spec.blocks)]
-            body[0] = ("front matter", "\n".join(str(spec.meta.get(x, "")) for x in ("title", "takeaway")
-                                                 if spec.meta.get(x)))
             dc.check_numbers(f, body, src_text, args.all_numbers)
             dc.check_claims(f, body, src_text)
     else:
         f.add("INFO", "NO-SOURCE", "sources", "no --source given: numbers and claims were not traced")
-    if args.ledger:
-        dc.check_ledger(f, spec, args.ledger, where, None)
-    # words, takeaway, required fields, fonts, size limits
-    words = sum(dk.word_count(ss.block_text(b)) for b in spec.blocks if not b.attrs.get("footer")) + \
-        dk.word_count(spec.get("takeaway", "") + " " + spec.get("title", ""))
+    words = sum(dk.word_count(t) for w, t in body if w != "header") + dk.word_count(r["header"].split("\n")[0])
     if words > st["max_words"]:
-        f.add("WARN", "WORDS", "poster", f"{words} words (style '{st['name']}' suggests at most {st['max_words']}); "
-                                         "visitors read a poster in about 3 minutes")
+        f.add("WARN", "WORDS", "poster", f"{words} words (style '{name}' suggests at most {st['max_words']}); visitors "
+                                         "read a poster in about 3 minutes")
     else:
         f.add("INFO", "WORDS", "poster", f"{words} words")
-    if not spec.get("takeaway") and st["layout"] != "billboard":
-        f.add("INFO", "NO-TAKEAWAY", "poster", "no takeaway sentence; the title and panel titles carry the message")
-    for k in ("title", "authors"):
-        if not spec.get(k):
-            f.add("FAIL", "MISSING", "front matter", f"no {k}")
-    if not spec.get("contact") and not spec.get("qr"):
-        f.add("WARN", "MISSING", "front matter", "no contact and no QR code: visitors cannot follow up")
-    body_pt = p.info["body_pt"] or 0
-    need = st["min_body_pt"] * p.u
-    if body_pt and body_pt < need - 0.05:
-        f.add("FAIL", "FONT-MIN", "poster", f"body text shrank to {body_pt} pt to fit; at least {need:.1f} pt is "
-                                            f"readable from 1.5-2 m at this size. Cut words")
-    elif p.info["scale"] < 1.0:
-        f.add("INFO", "FONT-SHRUNK", "poster", f"body text set at {body_pt} pt (style default "
-                                               f"{st['body_pt'] * p.u:.0f} pt) to fit")
-    fill = p.info.get("fill") or []
-    if fill and min(fill) < 0.7:
-        f.add("INFO", "SPARSE", "poster", f"column fill {', '.join(f'{x:.0%}' for x in fill)}: figures are capped at the "
-                                          "column width; consider fewer columns (front matter 'columns: 2'), "
-                                          "larger or more figures, or a smaller size")
-    lim = args.max_size or spec.get("max-size")
+    if r["billboard"] and (not r["takeaway"] or dk.placeholders(r["takeaway"])):
+        f.add("FAIL", "NO-TAKEAWAY", "centre", "billboard poster without a takeaway sentence")
+    if "<h1></h1>" in r["doc"] or "<h1>" not in r["doc"]:
+        f.add("FAIL", "MISSING", "header", "no title")
+    if "Contact" not in r["footer"] and not any("qr" in i.lower() for i in r["images"]):
+        f.add("WARN", "MISSING", "footer", "no contact and no QR code: visitors cannot follow up")
+    # layout as the browser renders it
+    if rep:
+        for col in rep.get("overflow") or []:
+            f.add("FAIL", "OVERFLOW", col, f"content does not fit even with text at {rep.get('scale', 0):.0%}; cut "
+                                           "words, remove a section or move one to a shorter column")
+        need = st["min_body_pt"] * u
+        if rep.get("body_pt") and rep["body_pt"] < need - 0.05:
+            f.add("FAIL", "FONT-MIN", "poster", f"body text {rep['body_pt']} pt; at least {need:.1f} pt is readable "
+                                                "from 1.5-2 m at this size")
+        elif rep.get("scale", 1) < 0.999:
+            f.add("INFO", "FONT-SHRUNK", "poster", f"text set at {rep['scale']:.0%} of the style size "
+                                                   f"(body {rep.get('body_pt')} pt) to fit")
+        for im in rep.get("images", []):
+            if im.get("broken"):
+                f.add("FAIL", "IMG-MISSING", im.get("where") or "poster", f"image not found: {im['src']}")
+                continue
+            if im.get("vector") or not im["natural"][0] or not im["placed_in"][0]:
+                continue
+            ppi = im["natural"][0] / im["placed_in"][0]
+            nm = os.path.basename(im["src"])
+            if ppi < 100:
+                f.add("FAIL", "IMG-RESOLUTION", im.get("where") or "poster", f"{nm}: {im['natural'][0]} px over "
+                      f"{im['placed_in'][0]:.1f} in = {ppi:.0f} px/in; blurred in print (export at 300 px/in or as SVG/PDF)")
+            elif ppi < 150:
+                f.add("WARN", "IMG-RESOLUTION", im.get("where") or "poster", f"{nm}: {ppi:.0f} px/in at the printed size "
+                                                                            "(150+ recommended)")
+    else:
+        f.add("INFO", "NOT-MEASURED", "layout", (err or "layout not measured") + "; overflow and text size were not "
+              "checked, figure resolution is estimated from the column width")
+        ncols = max(1, len(re.findall(r'^\s*<div class="col" data-col=', r["doc"], re.M)))
+        pw_in = page[0] / 25.4
+        col_in = (pw_in - 2 * 25 * u / 25.4 - (ncols - 1) * 16 * u / 25.4) / (4 if r["billboard"] else ncols)
+        for src in r["images"]:
+            fp = os.path.normpath(os.path.join(base, src))
+            if not os.path.exists(fp):
+                f.add("FAIL", "IMG-MISSING", "poster", f"image not found: {src}")
+                continue
+            try:
+                info = dk.image_info(fp)
+            except (ValueError, OSError):
+                continue
+            ppi = dk.effective_dpi(info, col_in)
+            if ppi is not None and ppi < 100:
+                f.add("FAIL", "IMG-RESOLUTION", "poster", f"{os.path.basename(src)}: {info['w']} px over about "
+                      f"{col_in:.1f} in (a column) = {ppi:.0f} px/in; blurred in print")
+            elif ppi is not None and ppi < 150:
+                f.add("WARN", "IMG-RESOLUTION", "poster", f"{os.path.basename(src)}: about {ppi:.0f} px/in at column width")
+    lim = args.max_size or r["meta"].get("max-size")
     if lim and not dk.placeholders(lim):
         lw, lh = PS.parse_size(lim)
-        if p.W > lw + 1e-3 or p.H > lh + 1e-3:
-            f.add("FAIL", "SIZE", "poster", f"{p.W * 25.4:.0f} x {p.H * 25.4:.0f} mm exceeds the venue limit "
+        pw, ph = page[0] / 25.4, page[1] / 25.4
+        if pw > lw + 1e-3 or ph > lh + 1e-3:
+            f.add("FAIL", "SIZE", "poster", f"{page[0]:.0f} x {page[1]:.0f} mm exceeds the venue limit "
                                             f"{lw * 25.4:.0f} x {lh * 25.4:.0f} mm")
-        elif (p.W > p.H) != (lw > lh) and abs(lw - lh) > 1:
+        elif (pw > ph) != (lw > lh) and abs(lw - lh) > 1:
             f.add("FAIL", "ORIENTATION", "poster", "orientation differs from the venue's board")
-    dc.check_contrast(f, PS.text_pairs(st), f"style {st['name']}")
-    dc.check_cvd(f, {"accent": st["accent"], "accent2": st["accent2"]}, f"style {st['name']}")
-    dc.check_dpi(f, p.ctx.placed, 150, 100, "in print")
-    header = [f"Spec: `{args.spec}`", f"Style: {st['name']}; size {p.W * 25.4:.0f} x {p.H * 25.4:.0f} mm; body text "
-              f"{body_pt} pt", f"Sources: {', '.join(sources) if sources else 'none'}"]
-    md, js = f.write(args.out, "Poster check" if lang == "en" else "海报检查", header, lang,
-                     {"info": p.info, "words": words})
-    print(f"FAIL {f.count('FAIL')} · WARN {f.count('WARN')} · INFO {f.count('INFO')}; {words} words; "
-          f"body {body_pt} pt")
+    dc.check_contrast(f, _pairs_from_vars(r["vars"], r["billboard"]), f"style {name}")
+    acc = {k: r["vars"].get(k, "").strip() for k in ("accent", "accent2")}
+    dc.check_cvd(f, {k: v for k, v in acc.items() if dk.is_hex(v)}, f"style {name}")
+    return {"report": rep, "words": words, "style": name, "page_mm": page, "sources": sources}
+
+
+def cmd_check(args):
+    path = args.spec
+    if not path.lower().endswith((".html", ".htm")):
+        spec = ss.parse(path)
+        work = os.path.join(args.out, ".check-build")
+        path, _missing = PH.build(spec, style_for(spec, args), size_for(spec, args), work, args.math)
+    f = dc.Findings()
+    info = check_html(path, args, f)
+    lang = args.lang or ("zh" if dk.has_cjk(PH.read(path)["header"]) else "en")
+    rep = info["report"] or {}
+    header = [f"Poster: `{args.spec}`", f"Style: {info['style']}; page {info['page_mm'][0]:.0f} x {info['page_mm'][1]:.0f}"
+              f" mm; text scale {rep.get('scale', 1):.0%}; body text {rep.get('body_pt', '?')} pt",
+              f"Sources: {', '.join(info['sources']) if info['sources'] else 'none'}"]
+    md, _js = f.write(args.out, "Poster check" if lang == "en" else "海报检查", header, lang, info | {"report": rep})
+    print(f"FAIL {f.count('FAIL')} · WARN {f.count('WARN')} · INFO {f.count('INFO')}; {info['words']} words; "
+          f"body {rep.get('body_pt', '?')} pt")
     print("wrote", md)
     return f.exit_code()
 
@@ -717,6 +811,19 @@ def main(argv=None):
     a = sp.add_parser("render")
     common(a)
     a.add_argument("--no-preview", action="store_true")
+    a.add_argument("--pptx", action="store_true", help="also write an editable PowerPoint built from the spec")
+    a.add_argument("--force", action="store_true", help="overwrite an existing poster.html")
+    a = sp.add_parser("export")
+    a.add_argument("html")
+    a.add_argument("--out", help="output folder (default: next to the HTML)")
+    a = sp.add_parser("restyle")
+    a.add_argument("html")
+    a.add_argument("--style", required=True)
+    a.add_argument("--palette")
+    a.add_argument("--font")
+    a.add_argument("--size", help="new page size, e.g. A0-landscape (columns stay as they are)")
+    a.add_argument("--out")
+    a.add_argument("--in-place", action="store_true")
     a = sp.add_parser("gallery")
     common(a)
     a.add_argument("--styles")
@@ -728,8 +835,8 @@ def main(argv=None):
     a.add_argument("--all-numbers", action="store_true")
     a.add_argument("--lang", choices=("en", "zh"))
     args = ap.parse_args(argv)
-    return {"styles": cmd_styles, "sizes": cmd_sizes, "init": cmd_init, "render": cmd_render,
-            "gallery": cmd_gallery, "check": cmd_check}[args.cmd](args)
+    return {"styles": cmd_styles, "sizes": cmd_sizes, "init": cmd_init, "render": cmd_render, "export": cmd_export,
+            "restyle": cmd_restyle, "gallery": cmd_gallery, "check": cmd_check}[args.cmd](args)
 
 
 if __name__ == "__main__":

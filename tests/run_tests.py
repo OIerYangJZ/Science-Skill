@@ -13,6 +13,7 @@ temporary directory; nothing in the repository is modified.
 from __future__ import annotations
 
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -594,41 +595,101 @@ class GroupMeetingDeck(SlidesBase):
 
 
 class ResearchPoster(SlidesBase):
+    P = None
+
+    def poster(self, *a, ok=(0,)):
+        return run([script("research-poster", "poster.py"), *a], ok_codes=ok)
+
     def test_planted_errors(self):
         out = os.path.join(self.tmp, "check")
-        run([script("research-poster", "poster.py"), "check", os.path.join(self.fx, "poster.md"), "--source",
-             os.path.join(self.fx, "results.csv"), "--max-size", "A1", "--math", "text", "--out", out], ok_codes=(1,))
+        self.poster("check", os.path.join(self.fx, "poster.md"), "--source", os.path.join(self.fx, "results.csv"),
+                    "--max-size", "A1", "--math", "text", "--out", out, ok=(1,))
         c = self.codes(out)
         for code in ("NO-TAKEAWAY", "PLACEHOLDER", "NUM-NOT-IN-SOURCE", "SIZE", "IMG-RESOLUTION"):
             self.assertIn(code, c, f"{code} not reported: {sorted(c)}")
         self.assertFalse(any("0.812" in r["message"] for r in c["NUM-NOT-IN-SOURCE"]))
 
-    def test_dense_poster_fails_font_minimum(self):
+    def test_html_is_the_editable_master(self):
+        """render writes plain HTML; a hand edit is what check and restyle see; restyle keeps the content."""
+        out = os.path.join(self.tmp, "html")
+        spec = os.path.join(self.fx, "poster.md")
+        wr(spec, rd(spec).replace("style: billboard", "style: classic"))
+        self.poster("render", spec, "--math", "text", "--no-preview", "--out", out)
+        html = os.path.join(out, "poster.html")
+        doc = rd(html)
+        self.assertIn("@page { size: 841.0mm 1189.0mm; margin: 0; }", doc)
+        self.assertEqual(doc.count('<section class="panel">'), 2)
+        self.assertTrue(os.path.exists(os.path.join(out, "figures", "tiny.png")))
+        self.assertIn('src="figures/tiny.png"', doc)
+        self.poster("render", spec, "--math", "text", "--no-preview", "--out", out, ok=(1,))   # never overwrites edits
+        # the user edits the HTML: fixes the drifted number, introduces a new one
+        doc = doc.replace("0.913", "0.893").replace("[[placeholder]]", "Accuracy rose to 0.777 in my edit")
+        wr(html, doc)
+        chk = os.path.join(self.tmp, "chk")
+        self.poster("check", html, "--source", os.path.join(self.fx, "results.csv"), "--out", chk, ok=(1,))
+        msgs = [r["message"] for r in self.codes(chk).get("NUM-NOT-IN-SOURCE", [])]
+        self.assertTrue(any("0.777" in m for m in msgs) and not any("0.913" in m for m in msgs), msgs)
+        self.assertNotIn("PLACEHOLDER", self.codes(chk))
+        # restyle twice: content identical, one style block, the guide comment intact
+        self.poster("restyle", html, "--style", "dark", "--out", os.path.join(out, "d.html"))
+        self.poster("restyle", os.path.join(out, "d.html"), "--style", "journal", "--in-place")
+        new = rd(os.path.join(out, "d.html"))
+        strip = lambda t: re.sub(r'<style id="poster-style">.*?</style>|<body class="[^"]*"|'   # noqa: E731
+                                 r'<meta name="poster:style"[^>]*>', "", t, flags=re.S)
+        self.assertEqual(strip(new), strip(doc))
+        self.assertEqual(new.count('<style id="poster-style">'), 1)
+        self.assertIn("How to edit this poster", new)
+        self.assertIn("--panel-title-fg: #8C1C13;", new)
+        self.poster("restyle", html, "--style", "billboard", ok=(1,))      # different structure: refused
+
+    def test_every_style_and_template(self):
+        sys.path.insert(0, os.path.join(SK, "research-poster", "scripts"))
+        import poster_styles
+        import pptxwriter
+        for st in poster_styles.STYLES:
+            out = os.path.join(self.tmp, st)
+            self.poster("render", os.path.join(self.fx, "poster.md"), "--style", st, "--size", "A0-landscape",
+                        "--math", "text", "--no-preview", "--out", out)
+            doc = rd(os.path.join(out, "poster.html"))
+            self.assertIn("size: 1189.0mm 841.0mm", doc)
+            self.assertEqual('<main class="poster-body billboard">' in doc, st == "billboard")
+        out = os.path.join(self.tmp, "pp")
+        self.poster("render", os.path.join(self.fx, "poster.md"), "--pptx", "--math", "text", "--no-preview",
+                    "--out", out)
+        self.assertEqual(pptxwriter.validate(os.path.join(out, "poster.pptx")), [])
+        for tpl in ("empirical", "theory", "billboard"):
+            for lang in ("en", "zh"):
+                spec = os.path.join(self.tmp, f"{tpl}-{lang}.md")
+                self.poster("init", "--template", tpl, "--lang", lang, "--out", spec)
+                self.poster("render", spec, "--math", "text", "--no-preview", "--out", os.path.join(self.tmp, f"t-{tpl}-{lang}"))
+
+
+@unittest.skipUnless(shutil.which("google-chrome") or shutil.which("chromium") or
+                     os.path.exists("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"),
+                     "needs headless Chrome")
+class ResearchPosterBrowser(SlidesBase):
+    """Layout checks measured in a real browser (skipped without Chrome)."""
+
+    def setUp(self):
+        super().setUp()
+        os.environ.pop("SCIENCE_SKILL_NO_CHROME", None)
+
+    def tearDown(self):
+        os.environ["SCIENCE_SKILL_NO_CHROME"] = "1"
+        super().tearDown()
+
+    def test_dense_poster_and_export(self):
         out = os.path.join(self.tmp, "dense")
         run([script("research-poster", "poster.py"), "check", os.path.join(self.fx, "dense.md"), "--math", "text",
              "--out", out], ok_codes=(1,))
         c = self.codes(out)
         self.assertTrue("FONT-MIN" in c or "OVERFLOW" in c, sorted(c))
         self.assertIn("WORDS", c)
-
-    def test_render_every_style(self):
-        sys.path.insert(0, os.path.join(SK, "research-poster", "scripts"))
-        import poster_styles
-        import pptxwriter
-        for st in poster_styles.STYLES:
-            out = os.path.join(self.tmp, st)
-            run([script("research-poster", "poster.py"), "render", os.path.join(self.fx, "poster.md"), "--style", st,
-                 "--size", "A0-landscape", "--math", "text", "--no-preview", "--out", out])
-            pptx = os.path.join(out, "poster.pptx")
-            self.assertEqual(pptxwriter.validate(pptx), [], st)
-            pres = rd(os.path.join(out, "poster.html"))
-            self.assertIn("size: 46.81", pres)                      # A0 landscape width in inches
-        for tpl in ("empirical", "theory", "billboard"):
-            for lang in ("en", "zh"):
-                spec = os.path.join(self.tmp, f"{tpl}-{lang}.md")
-                run([script("research-poster", "poster.py"), "init", "--template", tpl, "--lang", lang, "--out", spec])
-                run([script("research-poster", "poster.py"), "render", spec, "--math", "text", "--no-preview",
-                     "--out", os.path.join(self.tmp, f"t-{tpl}-{lang}")])
+        r = os.path.join(self.tmp, "r")
+        run([script("research-poster", "poster.py"), "render", os.path.join(self.fx, "poster.md"), "--math", "text",
+             "--out", r])
+        for name in ("poster.html", "poster.pdf", "poster-preview.png", "poster-glance.png"):
+            self.assertTrue(os.path.exists(os.path.join(r, name)), name)
 
 
 # ---------------------------------------------------------------------------
