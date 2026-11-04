@@ -530,6 +530,28 @@ def find_chrome() -> str | None:
 _SOFFICE: list = []
 
 
+FONT_FILES = {"CMU Sans Serif": ("cmunss", "cmunsx"), "CMU Serif": ("cmunrm",),
+              "Latin Modern Sans": ("lmsans10",)}
+FONT_DIRS = ("~/Library/Fonts", "/Library/Fonts", "/System/Library/Fonts", "~/.fonts", "~/.local/share/fonts",
+             "/usr/share/fonts", "/usr/local/share/fonts", "C:/Windows/Fonts",
+             os.path.join(os.environ.get("LOCALAPPDATA", ""), "Microsoft/Windows/Fonts"))
+
+
+def font_installed(family: str) -> bool:
+    """Whether a font family listed in FONT_FILES is installed as a system font (by file name)."""
+    stems = FONT_FILES.get(family)
+    if not stems:
+        return False
+    for d in FONT_DIRS:
+        d = os.path.expanduser(d)
+        if not os.path.isdir(d):
+            continue
+        for _root, _dirs, files in os.walk(d):
+            if any(f.lower().startswith(stems) and f.lower().endswith((".otf", ".ttf")) for f in files):
+                return True
+    return False
+
+
 def find_soffice() -> str | None:
     """A LibreOffice binary that actually runs (package-manager wrappers can outlive the app)."""
     if _SOFFICE:

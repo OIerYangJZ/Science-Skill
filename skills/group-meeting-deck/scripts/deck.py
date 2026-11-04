@@ -945,6 +945,12 @@ def cmd_check(args):
         if info["body_pt"] and info["body_pt"] < st["body_pt"] - 0.5:
             f.add("INFO", "FONT-SHRUNK", where(b), f"body text set at {info['body_pt']} pt to fit "
                                                    f"(style default {st['body_pt']} pt)")
+    common = {"Arial", "Georgia", "Courier New", "Calibri", "Cambria", "Times New Roman", "Helvetica", "Verdana",
+              "Tahoma", "Trebuchet MS", "Segoe UI", "Aptos", "PingFang SC", "Microsoft YaHei"}
+    for fnt in {st["font_body"], st["font_heading"]} - common:
+        f.add("INFO", "FONT-PORTABLE", f"style {st['name']}", f"'{fnt}' must be installed on the presenting "
+              "computer, otherwise PowerPoint substitutes another font and line breaks move; embed it (PowerPoint: "
+              "Preferences > Save > Embed fonts) or present from the PDF")
     dc.check_contrast(f, DS.text_pairs(st), f"style {st['name']}")
     dc.check_cvd(f, {"accent": st["accent"], "accent2": st.get("accent2", st["accent"])}, f"style {st['name']}")
     dc.check_dpi(f, d.ctx.placed, 110, 60, "on a 1920-pixel projector")

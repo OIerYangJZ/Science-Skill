@@ -23,6 +23,7 @@ The exit code is 1 when any FAIL remains, otherwise 0. Every finding is a lead t
 | DENSE | WARN | More words than the style suggests | Move detail to the notes |
 | BULLETS | WARN | More than seven bullets | Group or split |
 | TITLE-NOT-CLAIM | WARN | Assertion style with a title of fewer than five words | Write the claim as a sentence |
+| FONT-PORTABLE | INFO | The style uses a font that is not on every computer (e.g. CMU Sans Serif) | Install it on the presenting computer, embed fonts in PowerPoint, or present from the PDF |
 | FONT-SHRUNK | INFO | Body text was reduced to fit | Consider cutting words |
 | CONTRAST | FAIL / INFO | A text colour pair below 4.5:1 (3:1 for large text) | Change the palette override |
 | CVD | WARN | Accent colours that collapse under protan-, deutan- or tritanopia | Do not let these two colours alone carry meaning |

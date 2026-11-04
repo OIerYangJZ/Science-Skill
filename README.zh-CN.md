@@ -1010,7 +1010,7 @@ python3 $D render examples/demo/deck.md --style metropolis --format pptx,tex --c
 python3 $D check examples/demo/deck.md --minutes 12 --out /tmp/deck    # 仍有 FAIL 时退出码为 1
 ```
 
-`render`、`gallery`、`check` 共用的选项：`--palette accent=#0B5394`、`--font`、`--aspect 16:9|4:3|16:10`、`--math auto|image|text`。使用 `--style beamer` 时，`> 文字 {title="状态"}` 会成为 Beamer 的块（block），Madrid 配色随 `--palette accent=…` 变化，`--beamer-theme Warsaw`（或 CambridgeUS、Boadilla、AnnArbor 等）可以更换 Beamer 文件的主题。`render --quicklook` 还会用 macOS 快速查看直接预览 `.pptx` 本身。内容稿格式见 [`references/spec-format.md`](skills/group-meeting-deck/references/spec-format.md)，检查代码见 [`references/checks.md`](skills/group-meeting-deck/references/checks.md)。
+`render`、`gallery`、`check` 共用的选项：`--palette accent=#0B5394`、`--font`、`--aspect 16:9|4:3|16:10`、`--math auto|image|text`。使用 `--style beamer` 时，`> 文字 {title="状态"}` 会成为 Beamer 的块（block），Madrid 配色随 `--palette accent=…` 变化，`--beamer-theme Warsaw`（或 CambridgeUS、Boadilla、AnnArbor 等）可以更换 Beamer 文件的主题。如果本机装有 CMU Sans Serif（Computer Modern 无衬线体，TeX Live 自带，位于 `cm-unicode`），PowerPoint 文件会像 Beamer 一样使用它；演示用的电脑也要装上这套字体，或者在 PowerPoint 里嵌入字体。`render --quicklook` 还会用 macOS 快速查看直接预览 `.pptx` 本身。内容稿格式见 [`references/spec-format.md`](skills/group-meeting-deck/references/spec-format.md)，检查代码见 [`references/checks.md`](skills/group-meeting-deck/references/checks.md)。
 
 **提示。** 备注写成你要说的话，或者在页面上写 `{time=1.5}`：计时按每分钟 130 个英文词（250 个汉字）统计备注，两者都没有的页面会标为"假定"。BLOCKED 标签表示工作没能做成，不表示想法失败，汇报时也要这样讲。
 

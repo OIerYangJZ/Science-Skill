@@ -439,6 +439,7 @@ class SlidesBase(Tmp):
     def setUp(self):
         super().setUp()
         os.environ["SCIENCE_SKILL_NO_CHROME"] = "1"
+        os.environ["SCIENCE_SKILL_NO_FONT_DETECT"] = "1"     # same layout whatever fonts this machine has
         self.fx = os.path.join(self.tmp, "fx")
         shutil.copytree(os.path.join(FIX, "slides"), self.fx)
         import designkit

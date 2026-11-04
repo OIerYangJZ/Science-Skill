@@ -2,6 +2,7 @@
 when the style does. See references/styles.md for when to use each one."""
 from __future__ import annotations
 
+import os
 import sys
 
 SANS = "Arial"
@@ -84,7 +85,7 @@ STYLES: dict[str, dict] = {
         fg="#000000", muted="#4D4D4D", accent="#3333B3", title_bg="#3333B3", title_fg="#FFFFFF", title_pt=24,
         title_bold=False, body_pt=22, section_bg="#FFFFFF", section_fg="#000000", footer="infolines",
         footer_fg="#FFFFFF", cover="beamer", section_style="box", bullet="●", quote_box=True, quote_fg="#000000",
-        code_bg="#E9E9F3", beamer_theme="Madrid", max_words=70,
+        code_bg="#E9E9F3", beamer_theme="Madrid", max_words=70, font_prefer="CMU Sans Serif",
     ),
     "minimal": _s(
         label="Minimal",
@@ -129,6 +130,10 @@ def get(name: str, palette: dict | None = None, font: str | None = None) -> dict
         st["code_bg"] = (palette or {}).get("code_bg", st["block_bg"])
     if font:
         st["font_body"] = st["font_heading"] = font
+    elif st.get("font_prefer") and not os.environ.get("SCIENCE_SKILL_NO_FONT_DETECT"):
+        import designkit as dk
+        if dk.font_installed(st["font_prefer"]):     # Beamer's Computer Modern Sans, when installed
+            st["font_body"] = st["font_heading"] = st["font_prefer"]
     st.setdefault("link", st["accent"])
     return st
 
