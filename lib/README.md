@@ -1,6 +1,6 @@
 # lib: Python modules shared by the skills
 
-Depends only on the Python 3.10+ standard library. Each skill's scripts locate this directory via `os.path.realpath(__file__)`, so it is found even when a skill is invoked through a symlink at `~/.claude/skills/<name>`. Do not copy an individual skill directory elsewhere to use it on its own.
+Depends only on the Python 3.10+ standard library (Chrome, LaTeX and poppler are optional for slide and poster previews). Each skill's scripts locate this directory via `os.path.realpath(__file__)`, so it is found even when a skill is invoked through a symlink at `~/.claude/skills/<name>`. Do not copy an individual skill directory elsewhere to use it on its own.
 
 | Module | Contents | Used by |
 |---|---|---|
@@ -9,6 +9,11 @@ Depends only on the Python 3.10+ standard library. Each skill's scripts locate t
 | `bibtex.py` | Reading BibTeX and RIS, splitting free-form reference lists, extracting author surnames, converting LaTeX to plain text | cite-verify |
 | `docxutil.py` | Reads Word `.docx` with the standard library only: heading styles and short bold paragraphs are recognized as sections, tables and equations become placeholders; positions are recorded as paragraph numbers | All (via texutil.load_document) |
 | `statsutil.py` | p-values for t, F, χ², r, z (regularized incomplete beta and gamma functions) | number-audit stats |
+| `slidespec.py` | The Markdown content spec for slides and posters: front matter, headings with `{attrs}`, bullets with status chips, figures, tables, formulas, columns, speaker notes, placeholders | group-meeting-deck, research-poster |
+| `pptxwriter.py` | Editable PowerPoint (.pptx) files with the standard library: any slide size up to 56 in, shapes, styled text, bullets, pictures, tables, speaker notes; an HTML twin of the same geometry for previews and overflow checks; text measurement in headless Chrome; package validation | group-meeting-deck, research-poster |
+| `slidekit.py` | Spec elements turned into measured pieces and stacked (images fill the remaining height); PDF/SVG figures converted for PowerPoint; display formulas via LaTeX or Unicode | group-meeting-deck, research-poster |
+| `designkit.py` | WCAG contrast, colour-vision-deficiency simulation, image size and effective resolution, CJK-aware word counts and speaking time, number tracing against sources, claim-strength drift, placeholders, ledger statuses, optional Chrome / LibreOffice / Quick Look / pdftoppm / LaTeX helpers | group-meeting-deck, research-poster |
+| `designcheck.py` | Checks shared by the slide and poster skills and their FAIL / WARN / INFO report (exit 1 while a FAIL remains) | group-meeting-deck, research-poster |
 
 Network access goes only to public metadata APIs; no personal information is sent. For your own quota, set `OPENALEX_API_KEY` (without a key, OpenAlex gives everyone one small shared daily allowance) and `SCIENCE_SKILL_MAILTO` (Crossref polite pool).
 

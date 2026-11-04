@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?logo=python&logoColor=white)
 ![Dependencies: standard library only](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg)
-![Skills: 9](https://img.shields.io/badge/skills-9-orange.svg)
+![Skills: 11](https://img.shields.io/badge/skills-11-orange.svg)
 ![Claude Code skills](https://img.shields.io/badge/Claude%20Code-skills-D97757.svg)
 
 [English](README.md) · **简体中文**
@@ -34,6 +34,8 @@ AI 助手已经参与到论文的写作、分析和核查之中。它出错的�
 | 建议投稿去向时 | 凭记忆作答，费用、规则和截止日期都已过时 | [`venue-fit`](#venue-fit) |
 | 写模拟审稿意见时 | 复述作者自己的笔记，声称的"错误"从未被核实 | [`mock-review`](#mock-review) |
 | 汇报难题的进展时 | 比证据所支持的更乐观，还反复尝试已经失败的路线 | [`dead-end-ledger`](#dead-end-ledger) |
+| 制作组会幻灯片时 | 改写你的措辞、替换你的数字、把进展说得比实际更确定，汇报时长靠猜 | [`group-meeting-deck`](#group-meeting-deck) |
+| 制作会议海报时 | 主张被说强或丢掉限制条件，数字走样，字太小、图太糊，无法印刷 | [`research-poster`](#research-poster) |
 
 每个技能都是一份由 Claude Code 执行的**书面流程**，配有只用 **Python 标准库**实现的测量、追溯和核验脚本，让结论以证据为依据，而不取决于模型的语气。每个技能都是在相应问题于真实项目中发生之后编写的，见 [FAILURE_MODES.md](FAILURE_MODES.md)。
 
@@ -50,7 +52,7 @@ AI 助手已经参与到论文的写作、分析和核查之中。它出错的�
 - [设计原则](#设计原则)
 - [安装](#安装)
 - [一次技能运行是怎样的](#一次技能运行是怎样的)
-- [技能详解](#技能详解)：[paper-polish](#paper-polish) · [number-audit](#number-audit) · [experiment-integrity](#experiment-integrity) · [proof-audit](#proof-audit) · [cite-verify](#cite-verify) · [novelty-audit](#novelty-audit) · [venue-fit](#venue-fit) · [mock-review](#mock-review) · [dead-end-ledger](#dead-end-ledger)
+- [技能详解](#技能详解)：[paper-polish](#paper-polish) · [number-audit](#number-audit) · [experiment-integrity](#experiment-integrity) · [proof-audit](#proof-audit) · [cite-verify](#cite-verify) · [novelty-audit](#novelty-audit) · [venue-fit](#venue-fit) · [mock-review](#mock-review) · [dead-end-ledger](#dead-end-ledger) · [group-meeting-deck](#group-meeting-deck) · [research-poster](#research-poster)
 - [不用 Claude Code 的快捷提示词](#不用-claude-code-的快捷提示词)
 - [在自动科研流水线中作为关卡使用](#在自动科研流水线中作为关卡使用)
 - [命令行工具](#命令行工具) · [支持的输入](#支持的输入) · [数据来源与隐私](#数据来源与隐私)
@@ -226,6 +228,7 @@ flowchart LR
         b2["experiment-integrity"]
         b3["proof-audit"]
         b4["mock-review --quick"]
+        b5["group-meeting-deck"]
     end
     subgraph P3["3 · 投稿之前"]
         direction TB
@@ -236,14 +239,16 @@ flowchart LR
         d1["mock-review（诊断）"]
         d2["venue-fit（改投）"]
         d3["paper-polish（重新定位）"]
+        d4["research-poster（展示）"]
     end
     P1 --> P2 --> P3 --> P4
 ```
 
 - **立项之前：** 查一查这个想法是否已有人做过或正在做（`novelty-audit --mode scout`）。
-- **研究进行中：** 维护一份如实的账本（`dead-end-ledger`）；代码稳定后审计代码（`experiment-integrity`）；证明在记为"已证明"之前先审计（`proof-audit`）；用低成本的方式检验某种表述（`mock-review --quick`）。
+- **研究进行中：** 维护一份如实的账本（`dead-end-ledger`）；代码稳定后审计代码（`experiment-integrity`）；证明在记为"已证明"之前先审计（`proof-audit`）；用低成本的方式检验某种表述（`mock-review --quick`）；组会汇报时，状态取自账本（`group-meeting-deck`）。
 - **投稿之前：** `novelty-audit` → `venue-fit` → `paper-polish` → `number-audit` → `cite-verify` → `mock-review`；如果还没做过，再加上 `experiment-integrity` 或 `proof-audit`。
 - **收到决定之后：** 诊断拒稿原因，选择下一个投稿去向，重新组织编辑会读的部分。
+- **展示成果：** 按会场展板尺寸制作、与论文说法一致的海报（`research-poster`）；计时精确的预讲幻灯片（`group-meeting-deck --template rehearsal`）。
 
 ## 技能一览
 
@@ -258,6 +263,8 @@ flowchart LR
 | [`venue-fit`](#venue-fit) | 投稿 | 凭印象选投稿去向 | 相似工作发在哪里；期刊档案；附网址和核对日期的官方事实表；匹配度评估；投稿计划与日程 |
 | [`mock-review`](#mock-review) | 投稿 | 模拟审稿不独立、不复核，稿件版本也不固定 | 隔离并锁定版本的审稿副本；独立报告；交叉讨论；核实；按优先级排序的联合报告；快速的致命论点模式 |
 | [`dead-end-ledger`](#dead-end-ledger) | 研究 | 讨好式的进展汇报；反复尝试已经失败的路线 | 研究账本：分级的结果、路线、依赖关系和障碍；想法卡片；止损规则；格式检查与依赖图 |
+| [`group-meeting-deck`](#group-meeting-deck) | 研究、汇报 | 幻灯片改写作者原意、数字走样、夸大进展或超时 | 证据台账；从样张中选定七种风格之一的可编辑 PowerPoint（及 Beamer）；数字、账本状态、计时与可读性检查 |
+| [`research-poster`](#research-poster) | 汇报 | 海报把主张说强或丢掉条件、数字走样、看不清或无法印刷 | 主张台账；从样张中选定六种风格之一、按展板尺寸生成的可编辑 PowerPoint 和印刷 PDF；实测排版；检查；路人测试 |
 
 ## 设计原则
 
@@ -277,7 +284,7 @@ flowchart LR
 | | |
 |---|---|
 | 必需 | [Claude Code](https://claude.com/claude-code)；Python 3.10 或更高版本（只用标准库，已在 Python 3.14 上测试） |
-| 可选 | `pdftotext`（poppler），用于 PDF 稿件；GitHub CLI `gh`，用于 `novelty-audit` 中的代码仓库检索；`git`，用于 `mock-review` 打包 git 仓库 |
+| 可选 | `pdftotext`（poppler），用于 PDF 稿件；GitHub CLI `gh`，用于 `novelty-audit` 中的代码仓库检索；`git`，用于 `mock-review` 打包 git 仓库；幻灯片和海报可用无头 Chrome 或 Chromium（测量文字、生成 PDF 与预览）、`pdftoppm`（PNG 预览）和 LaTeX（公式、Beamer） |
 | 网络 | [数据来源与隐私](#数据来源与隐私)一节列出的公开学术接口 |
 
 **作为个人技能安装**（推荐）：
@@ -335,6 +342,8 @@ claude --plugin-dir /path/to/Science-Skill
 | venue-fit | `venue/<日期>/` | 不会 |
 | mock-review | `~/mock_review/<名称>-<日期>/`（仓库之外） | 不会 |
 | dead-end-ledger | 你指定的账本（如 `research/LEDGER.md`）及其笔记 | 只改账本和它所管理的笔记 |
+| group-meeting-deck | `deck/<日期>/` | 否；从不覆盖已有的幻灯片文件 |
+| research-poster | `poster/<日期>/` | 否 |
 
 一次 `number-audit` 运行结束后的目录示例：
 
@@ -929,6 +938,143 @@ python3 $G lint research/LEDGER.md --notes research/notes     # 格式、状态�
 python3 $G status research/LEDGER.md
 ```
 
+### group-meeting-deck
+
+> 组会汇报幻灯片：风格从你自己幻灯片的样张中挑选；每个数字可追溯，每个状态不超过账本记录，汇报时长是数出来的。
+
+| | |
+|---|---|
+| **适用场景** | 准备每周进展汇报、文献分享（journal club）、课题提案、单个结果的深入讨论，或对外报告的组内预讲 |
+| **不适用** | 会议海报（用 `research-poster`） |
+| **读取** | 结果文件、实验记录、稿件或要讲的论文、图片、上一次的幻灯片、`dead-end-ledger` 账本 |
+| **写出** | `deck/<日期>/`：`deck.pptx`（可编辑，含演讲者备注）、可选的 `deck.tex`（Beamer）、`deck.pdf` 与 PNG 预览、`evidence.md`、`check.md` |
+| **需要你决定** | 选择风格；你写的措辞要不要改；来源中找不到的数字 |
+| **网络** | 无 |
+
+**调用**
+
+```text
+/group-meeting-deck results/ notes.md --template progress --minutes 15
+/group-meeting-deck paper.pdf --template journal-club --minutes 20 --style clean
+/group-meeting-deck main.tex --template rehearsal --minutes 12 --style metropolis    # 同时生成 Beamer
+```
+
+**七种风格**，都由同一份内容渲染（`deck.py gallery` 用你自己的幻灯片逐一展示）：
+
+![同一份合成演示幻灯片在七种风格下的效果](docs/img/deck-styles.png)
+
+| 风格 | 适合 |
+|---|---|
+| `clean` | 每周进展汇报、听众背景混合；默认风格 |
+| `assertion` | 断言–证据式：每个标题是一句完整的结论，正文是证据；适合深入讨论与预讲 |
+| `metropolis` | 理论、数学、计算机；公式多的报告；与 Beamer 输出搭配 |
+| `campus` | 正式组会、阶段考核，使用学校主色（`--palette accent=#…`） |
+| `notebook` | 运行次数多、表格多、状态标签多的密集进展汇报 |
+| `dark` | 代码、模拟、成像；屏幕共享和较暗的会议室 |
+| `minimal` | 每页字很少的简短汇报与想法提案 |
+
+**五种结构模板**（`deck.py init`，英文或中文）：`progress`（当前状态 → 上次计划与完成情况 → 结果 → 没有成功的尝试 → 需要大家帮助的问题 → 下一步 → 备用页）、`journal-club`、`proposal`、`deep-dive`、`rehearsal`。
+
+**流程**
+
+1. **了解情况：** 组会类型、时长与讨论时间、听众、语言、来源、账本、组里的配色。
+2. **证据台账：** 每条结论连同确切数字、来源位置、状态和限制条件；包括上次组会以来失败或受阻的尝试。
+3. **Markdown 内容稿：** 每页一个要点；数字照抄；状态标签如 `{verified R1}`、`{negative X1}`、`{blocked X2}` 附账本编号；`???` 之后写演讲者备注；备用页。
+4. **从样张中选风格。**
+5. **渲染**为 PowerPoint（以及 Beamer），检查预览图中是否有被截断的文字、过挤的页面和看不清的图。
+6. **检查：** 数字与来源核对、状态标签与账本核对、遗漏的负面结果、按备注计时、文字密度、对比度、色觉友好、图片分辨率、溢出。
+7. **可选的讨论准备：** 一个只看幻灯片的子代理提出最难回答的五个问题，答案做成备用页。
+
+**检查输出示例**（来自 `tests/fixtures/slides/` 中预埋错误的样例）：
+
+```text
+| code              | where              | finding                                                                  |
+| NUM-NOT-IN-SOURCE | slide 2 (Results)  | 0.913 is not in the sources                                              |
+| STATUS-UPGRADE    | slide 2 (Results)  | chip says VERIFIED for R2; the ledger says PRELIMINARY                   |
+| TIMING-OVER       | talk               | about 11.3 min of speaking for 4 min of talking time (5 min minus 1 min Q&A) |
+| IMG-RESOLUTION    | slide 3            | tiny.png: 120×80 px placed 7.9 in wide = 15 px/in                        |
+| CLAIM-STRONGER    | slide 2 (Results)  | adds significantly to the source sentence                                |
+| QUALIFIER-DROPPED | slide 2 (Results)  | drops under from the source sentence                                     |
+| NEGATIVE-OMITTED  | ledger             | X1 (NEGATIVE, 2026-10-30) is not mentioned                               |
+```
+
+**脚本**
+
+```bash
+D=skills/group-meeting-deck/scripts/deck.py
+python3 $D styles                                                   # 七种风格
+python3 $D init --template progress --minutes 15 --lang zh --out deck/today/deck.md
+python3 $D gallery examples/demo/deck.md --out /tmp/gallery            # 用你的幻灯片展示每种风格
+python3 $D render examples/demo/deck.md --style metropolis --format pptx,tex --compile --out /tmp/deck
+python3 $D check examples/demo/deck.md --minutes 12 --out /tmp/deck    # 仍有 FAIL 时退出码为 1
+```
+
+`render`、`gallery`、`check` 共用的选项：`--palette accent=#0B5394`、`--font`、`--aspect 16:9|4:3|16:10`、`--math auto|image|text`。`render --quicklook` 还会用 macOS 快速查看直接预览 `.pptx` 本身。内容稿格式见 [`references/spec-format.md`](skills/group-meeting-deck/references/spec-format.md)，检查代码见 [`references/checks.md`](skills/group-meeting-deck/references/checks.md)。
+
+**提示。** 备注写成你要说的话，或者在页面上写 `{time=1.5}`：计时按每分钟 130 个英文词（250 个汉字）统计备注，两者都没有的页面会标为"假定"。BLOCKED 标签表示工作没能做成，不表示想法失败，汇报时也要这样讲。
+
+### research-poster
+
+> 会议海报：尺寸取自会场的展板，风格从你自己海报的样张中挑选，说的内容与论文一致。
+
+| | |
+|---|---|
+| **适用场景** | 为会议、研讨会或海报环节准备海报（打印或电子） |
+| **不适用** | 幻灯片（用 `group-meeting-deck`） |
+| **读取** | 稿件、结果文件、图片、标志；会场的海报要求页面 |
+| **写出** | `poster/<日期>/`：`poster.pptx`（印刷尺寸的单页可编辑文件）、`poster.pdf`（印刷文件）、`preview.png`、`glance.png`、`claims.md`、`check.md` |
+| **需要你决定** | 选择风格；会场页面没写尺寸时的展板尺寸；你自己措辞的修改 |
+| **网络** | 会场官方页面（尺寸与截止日期） |
+
+**调用**
+
+```text
+/research-poster main.tex "Conference 2027" --size A0
+/research-poster manuscript.docx --size 48x36in --style billboard
+```
+
+**六种风格**，都由同一份内容渲染（`poster.py gallery` 用你自己的海报逐一展示）：
+
+![同一份合成演示海报在六种风格下的效果](docs/img/poster-styles.png)
+
+| 风格 | 适合 |
+|---|---|
+| `classic` | 任何学科的传统海报环节；深蓝标题横幅、带框的版块；默认风格 |
+| `billboard` | #betterposter：用超大字号写一句通俗的主要发现，配关键图和二维码；人流密集的展厅 |
+| `minimal` | 人机交互、计算机、设计；严格网格、编号标题、单一强调色 |
+| `dark` | 机器学习、天文、成像；屏幕展示和电子海报环节 |
+| `journal` | 生命科学与物理科学；期刊排版风格，图版按 a、b、c 编号 |
+| `storyboard` | 方法流程和跨学科听众；带编号、按顺序阅读的卡片 |
+
+尺寸：A0、A1、A2、A3、B1、`A0-landscape`、`48x36in`、`36x48in`、`42x36in`、`36x24in`，或自定义 `900x1200mm`。三种结构模板：`empirical`、`theory`、`billboard`（英文或中文）。
+
+**流程**
+
+1. **了解情况：** 来源、会场要求（展板尺寸和方向，记下网址与查阅日期；查不到就标为未知）、听众、配色、标志、二维码指向。
+2. **主张台账：** 一句话结论、标题、各版块标题和每个数字，都附来源位置和限制条件。
+3. **内容稿：** 300–800 词；每个版块一个发现；`{col=N}` 规定阅读顺序，`{footer}` 放参考文献，`{center}` 放 billboard 风格的关键图。
+4. **从样张中选风格。**
+5. **渲染**为 PowerPoint 和印刷用 PDF。文字按实测排版：有空间时最多放大到风格字号的 120%，放不下时最多缩小到 72%。
+6. **检查：** 数字和主张与来源核对、溢出、正文小于 A0 上 24 磅（按尺寸缩放）、印刷尺寸下图片低于 100 px/in、对比度、色觉友好、缺少一句话结论、尺寸或方向超出展板。
+7. **路人测试：** 一个子代理先只看 `glance.png`，再看 `preview.png`，说出它读到了什么；主会话与主张台账对照。
+
+**脚本**
+
+```bash
+P=skills/research-poster/scripts/poster.py
+python3 $P styles; python3 $P sizes
+python3 $P init --template empirical --size A0 --out poster/today/poster.md
+python3 $P gallery examples/demo/poster.md --out /tmp/pgallery
+python3 $P render examples/demo/poster.md --style billboard --size A0-landscape --out /tmp/poster
+python3 $P check examples/demo/poster.md --max-size 841x1189mm --out /tmp/poster   # 仍有 FAIL 时退出码为 1
+```
+
+内容稿格式见 [`references/spec-format.md`](skills/research-poster/references/spec-format.md)，风格与字号见 [`references/styles.md`](skills/research-poster/references/styles.md)，检查代码见 [`references/checks.md`](skills/research-poster/references/checks.md)。
+
+**提示。** 图片导出为 PDF 或 SVG，或按印刷宽度 300 px/in 导出 PNG。二维码图片需要你自己提供。`.pptx` 是可编辑的母版；PowerPoint 会替换本机没有安装的字体，所以先以 100% 比例检查 `poster.pdf`，再用它付印。
+
+**渲染工具（可选，两个技能通用）。** 无头 Chrome 或 Chromium 用于测量文字、生成 PDF 和预览；没有它时排版用估算值，需要你亲眼检查 `.pptx`。LaTeX（pdflatex/xelatex）用于渲染行间公式和编译 Beamer。Poppler（`pdftoppm`）用于生成 PNG 预览。在 macOS 上，快速查看可以直接预览 `.pptx`。技能不会安装任何软件。
+
 ---
 
 ## 不用 Claude Code 的快捷提示词
@@ -970,7 +1116,7 @@ flowchart LR
 | 结果计入之前 | 对代码运行 `experiment-integrity`；理论主张用 `proof-audit`；报告数值用 `number-audit` 护栏 | 由流水线自身的 bug、哨兵值、数据泄漏或未经检查的证明步骤产生的结果 |
 | 写作与审稿 | `paper-polish`、`cite-verify`；每轮迭代用 `mock-review --quick`，投稿前做完整的 `mock-review` | 防御性或夸大的稿件；未经核实的审稿意见 |
 
-**可由机器判定的关卡**（失败时退出码非零）：`number_audit.py guard-check`、`ledger.py lint`、`ledger.py graph`、`review_pack.py check-pin`，以及四个报告脚本（`audit_report.py`、`review_report.py`、`integrity_report.py`、`numbers_report.py`：有已确认的严重问题时为 1，报告未定稿时为 2）。其他脚本给出的是需要智能体或人去阅读的线索；`refcheck.py` 会写出 `results.json`，逐条列出 ERROR 和 WARN。在流水线中，同意规则依然有效：长时间或付费的运行，以及任何要发送到外部服务的内容，都需要用户批准。
+**可由机器判定的关卡**（失败时退出码非零）：`number_audit.py guard-check`、`ledger.py lint`、`ledger.py graph`、`review_pack.py check-pin`、`deck.py check`、`poster.py check`，以及四个报告脚本（`audit_report.py`、`review_report.py`、`integrity_report.py`、`numbers_report.py`：有已确认的严重问题时为 1，报告未定稿时为 2）。其他脚本给出的是需要智能体或人去阅读的线索；`refcheck.py` 会写出 `results.json`，逐条列出 ERROR 和 WARN。在流水线中，同意规则依然有效：长时间或付费的运行，以及任何要发送到外部服务的内容，都需要用户批准。
 
 ## 命令行工具
 
@@ -987,6 +1133,8 @@ flowchart LR
 | `proof-audit/scripts/audit_report.py`、`mock-review/scripts/review_report.py`、`experiment-integrity/scripts/integrity_report.py`、`number-audit/scripts/numbers_report.py` | 账本；`--out`、`--lang`、`--manuscript`、`--version`（审稿另有 `--pin`） | 由发现账本计算报告；退出码 0 / 1 / 2 |
 | `mock-review/scripts/review_pack.py` | `pack`、`check-pin` | 隔离并锁定版本的审稿副本；检测稿件改动 |
 | `dead-end-ledger/scripts/ledger.py` | `init`、`search`、`card`、`graph`、`lint`、`status` | 建立账本、查重、想法卡片、依赖图、检查 |
+| `group-meeting-deck/scripts/deck.py` | `styles`、`templates`、`init`、`render`、`gallery`、`check` | 由 Markdown 内容稿生成幻灯片：PowerPoint、Beamer、预览、风格样张；检查（有 FAIL 时退出码为 1） |
+| `research-poster/scripts/poster.py` | `styles`、`sizes`、`init`、`render`、`gallery`、`check` | 由 Markdown 内容稿生成海报：PowerPoint、印刷 PDF、预览、风格样张；检查（有 FAIL 时退出码为 1） |
 
 每个脚本都可以用 `--help` 查看说明。会读取下载内容的脚本，请用 `python3 -I` 运行。
 
@@ -1001,6 +1149,7 @@ flowchart LR
 | 统计量 | 正文中的 APA 风格报告（`t(23) = 2.45, p = .02`、`F(2, 45) = 3.21, p < .05`、`χ2(1) = 3.84, p = .05`、`r(46) = .32, p = .03`、`z = 1.96, p = .05`）；`k of n (x%)`；带 95% 置信区间的 OR / RR / HR；`M = 3.48, n = 15` 和 `x% (n = 28)`（GRIM）；`均值 ± 标准差`；"from A to B, a C% / C-fold / C-point change" |
 | 证明 | LaTeX 定理类环境（包括 `\newtheorem` 和 `\declaretheorem` 声明的环境）、proof 环境、`\ref` 系列引用、xr 包的 `\externaldocument` |
 | 代码（integrity 扫描） | Python（语法树分析）；R、Julia、MATLAB、shell（正则） |
+| 幻灯片与海报 | Markdown 内容稿（[格式](skills/group-meeting-deck/references/spec-format.md)）；图片为 PNG、JPEG、GIF、SVG 或 PDF；输出 `.pptx`、Beamer `.tex`、PDF |
 
 ## 数据来源与隐私
 
@@ -1026,6 +1175,7 @@ flowchart LR
 - integrity 扫描对 Python 是精确分析，对其他语言是近似匹配。它只能发现可疑模式，不能直接判定 bug；设计层面的问题要靠"声明与代码核对"和检查清单来发现。
 - 不检索 Web of Science、Scopus、PsycINFO 等订阅数据库，这类检索会交给你完成。许多人文学科文献不在上述任何服务中。
 - 模式扫描和来源追溯给出的是线索，不是结论；技能要求逐条结合上下文阅读。
+- 幻灯片和海报的版式由脚本计算，而不是由 PowerPoint 排版：文字高度在 Chrome 中实测（没有 Chrome 时为估算），PowerPoint 还会替换未安装的字体，所以请在演示或印刷用的电脑上检查一次文件。主张强度扫描只针对英文；数字追溯不限语言。
 - 模拟审稿和模拟编辑由模型完成。它们检验的是贡献能否被读出、主张是否有依据，不能预测编辑的决定。
 
 ## 常见问题
@@ -1100,9 +1250,11 @@ Science-Skill/
 │       ├── SKILL.md            Claude Code 执行的流程
 │       ├── references/         细则、检查清单、模板和示例
 │       └── scripts/            可单独运行的脚本
-├── lib/                        共享模块：文档读取、学术接口、BibTeX/RIS、统计
+├── lib/                        共享模块：文档读取、学术接口、BibTeX/RIS、统计、PowerPoint 写出与排版
 ├── prompts/                    不用 Claude Code 时使用的校准写作提示词
 ├── examples/README.md          真实稿件的运行案例（只公开流程）
+├── examples/demo/              合成的演示幻灯片与海报（图、结果、账本），用于试用幻灯片和海报技能
+├── docs/img/                   本说明中展示的风格样张
 ├── tests/
 │   ├── run_tests.py            回归测试
 │   └── fixtures/               预埋错误的合成样例
@@ -1124,7 +1276,7 @@ python3 tests/run_tests.py -v         # 详细输出
 
 每次推送和 pull request，GitHub Actions 都会运行离线测试：Linux 上覆盖 Python 3.10–3.14，macOS 上覆盖 Python 3.14。联网测试按需运行：手动启动 workflow 并勾选 `online` 即可。
 
-[`tests/fixtures/`](tests/fixtures/) 中的样例都是合成的，并预埋了错误：不可能出现的均值、超出上界的标准差、算错的百分比变化、与统计量不符的 p 值、防御性措辞、条件里的随机数抽取、返回哨兵值的分支、占位数据、账本中的循环依赖、循环证明、被撤回的依赖，以及一条编造的参考文献。每个测试都检查预埋的错误被报告出来，而旁边的正确对照没有被误报。另有测试固定了脚本在[真实案例](#真实案例)中必须找到的问题，并检查仓库约定：每个技能的 frontmatter、两份 README 中的说明，以及 `FAILURE_MODES.md` 中的登记。
+[`tests/fixtures/`](tests/fixtures/) 中的样例都是合成的，并预埋了错误：不可能出现的均值、超出上界的标准差、算错的百分比变化、与统计量不符的 p 值、防御性措辞、条件里的随机数抽取、返回哨兵值的分支、占位数据、账本中的循环依赖、循环证明、被撤回的依赖、一条编造的参考文献；幻灯片和海报方面还有走样的数字、强于账本的状态标签、遗漏的负面结果、超时的汇报、低分辨率图片、看不清的配色、缺少一句话结论，以及超出展板的海报尺寸。每个测试都检查预埋的错误被报告出来，而旁边的正确对照没有被误报。另有测试固定了脚本在[真实案例](#真实案例)中必须找到的问题，并检查仓库约定：每个技能的 frontmatter、两份 README 中的说明，以及 `FAILURE_MODES.md` 中的登记。
 
 ## 参与贡献
 
@@ -1146,7 +1298,7 @@ python3 tests/run_tests.py -v         # 详细输出
   title   = {Science-Skill: Claude Code skills against the failure modes of AI-assisted research},
   author  = {{OIerYangJZ}},
   year    = {2026},
-  version = {0.4.0},
+  version = {0.5.0},
   url     = {https://github.com/OIerYangJZ/Science-Skill},
   license = {MIT}
 }

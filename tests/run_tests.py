@@ -427,6 +427,189 @@ class FindingsReports(Tmp):
 
 
 # ---------------------------------------------------------------------------
+# group-meeting-deck and research-poster
+# ---------------------------------------------------------------------------
+sys.path.insert(0, os.path.join(ROOT, "lib"))
+
+
+class SlidesBase(Tmp):
+    """Copies tests/fixtures/slides to a temporary directory and adds a tiny raster figure. Chrome and
+    LaTeX are switched off so results do not depend on what is installed."""
+
+    def setUp(self):
+        super().setUp()
+        os.environ["SCIENCE_SKILL_NO_CHROME"] = "1"
+        self.fx = os.path.join(self.tmp, "fx")
+        shutil.copytree(os.path.join(FIX, "slides"), self.fx)
+        import designkit
+        designkit.write_png(os.path.join(self.fx, "tiny.png"), 120, 80, (40, 90, 160))
+
+    def codes(self, out: str) -> dict[str, list[dict]]:
+        rows = jload(os.path.join(out, "check.json"))["findings"]
+        by: dict[str, list[dict]] = {}
+        for r in rows:
+            by.setdefault(r["code"], []).append(r)
+        return by
+
+
+class DesignKit(unittest.TestCase):
+    def test_contrast_and_cvd(self):
+        import designkit as dk
+        self.assertAlmostEqual(dk.contrast("#000000", "#FFFFFF"), 21.0, places=2)
+        self.assertLess(dk.contrast("#BBBBBB", "#FFFFFF"), 4.5)
+        bad = dk.palette_report({"red": "#D62728", "green": "#2CA02C"}, 12)
+        self.assertTrue(any(k == "deutan" for k, *_ in bad), bad)          # red/green collapse
+        self.assertFalse(dk.palette_report({"blue": "#0072B2", "orange": "#E69F00"}, 12))
+
+    def test_trace_numbers(self):
+        import designkit as dk
+        src = "accuracy 0.8934 and 0.812; rate 0.25; n = 128"
+        rows = {r["number"]: r["status"] for r in dk.trace_numbers("0.893 vs 0.812, 25%, 0.913, 128", src)}
+        self.assertEqual(rows, {"0.893": "ROUNDED", "0.812": "EXACT", "25": "SCALED", "0.913": "NOT-IN-SOURCE",
+                                "128": "EXACT"})
+        labels = dk.numbers_in("see Fig. 3, Eq. (12), Table 4, R2 and [17]; in 2025 we had 3 runs")
+        self.assertEqual(labels, [])
+
+    def test_image_info_and_units(self):
+        import designkit as dk
+        tmp = tempfile.mkdtemp(prefix="science-skill-test-")
+        try:
+            png = os.path.join(tmp, "a.png")
+            dk.write_png(png, 300, 150)
+            self.assertEqual((dk.image_info(png)["w"], dk.image_info(png)["h"]), (300, 150))
+            svg = os.path.join(tmp, "a.svg")
+            wr(svg, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200"></svg>')
+            self.assertAlmostEqual(dk.aspect(dk.image_info(svg)), 0.5)
+            self.assertEqual(dk.effective_dpi(dk.image_info(png), 2.0), 150)
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+        self.assertEqual(dk.word_count("two words 和三个字"), 6)
+
+    def test_tex_to_unicode_and_spec(self):
+        import slidekit
+        import slidespec
+        self.assertEqual(slidekit.tex_to_unicode(r"\alpha^2 \le \frac{1}{n}"), "α² ≤ 1/n")
+        spec = slidespec.parse_text("---\ntitle: T\n---\n## A {time=2 col=1}\n- {verified R1} ok\n"
+                                    "  - sub\n![cap [[x]]]([[fig.png]]){width=50%}\n:::\n| a | b |\n|---|---|\n"
+                                    "| 1 | 2 |\n???\nnotes here\n# Backup\n")
+        b = spec.blocks[0]
+        self.assertEqual(b.attrs, {"time": "2", "col": "1"})
+        self.assertEqual([e.kind for e in b.elements], ["bullets", "image", "colbreak", "table"])
+        self.assertEqual(b.elements[0].items[0][2:4], ("verified", "R1"))
+        self.assertEqual(b.elements[1].attrs, {"width": "50%"})
+        self.assertEqual(b.notes, "notes here")
+
+    def test_builtin_styles_are_legible(self):
+        import designcheck as dc
+        sys.path.insert(0, os.path.join(SK, "group-meeting-deck", "scripts"))
+        sys.path.insert(0, os.path.join(SK, "research-poster", "scripts"))
+        import deck_styles
+        import poster_styles
+        for mod in (deck_styles, poster_styles):
+            for name in mod.STYLES:
+                f = dc.Findings()
+                dc.check_contrast(f, mod.text_pairs(mod.get(name)), name)
+                self.assertEqual(f.count("FAIL"), 0, f"{mod.__name__}.{name}: {f.rows}")
+
+    def test_linear_partition(self):
+        sys.path.insert(0, os.path.join(SK, "research-poster", "scripts"))
+        import poster
+        self.assertEqual(poster.linear_partition([5, 1, 1, 1, 1, 1], 2), [0, 1, 1, 1, 1, 1])
+        self.assertEqual(poster.linear_partition([1, 1, 1, 1], 2), [0, 0, 1, 1])
+
+
+class GroupMeetingDeck(SlidesBase):
+    def test_planted_errors(self):
+        out = os.path.join(self.tmp, "check")
+        f = self.fx
+        run([script("group-meeting-deck", "deck.py"), "check", os.path.join(f, "deck.md"), "--source",
+             os.path.join(f, "results.csv"), os.path.join(f, "notes.md"), "--ledger", os.path.join(f, "LEDGER.md"),
+             "--math", "text", "--out", out], ok_codes=(1,))
+        c = self.codes(out)
+        nums = [r["message"] for r in c.get("NUM-NOT-IN-SOURCE", [])]
+        self.assertTrue(any("0.913" in m for m in nums), nums)
+        self.assertFalse(any("0.812" in m for m in nums), nums)              # control: copied correctly
+        ups = [r["message"] for r in c.get("STATUS-UPGRADE", [])]
+        self.assertTrue(any("R2" in m for m in ups) and not any("R1" in m for m in ups), ups)
+        neg = [r["message"] for r in c.get("NEGATIVE-OMITTED", [])]
+        self.assertTrue(any(m.startswith("X1") for m in neg) and not any(m.startswith("X2") for m in neg), neg)
+        for code in ("PLACEHOLDER", "TIMING-OVER", "CONTRAST", "IMG-RESOLUTION", "CLAIM-STRONGER",
+                     "QUALIFIER-DROPPED"):
+            self.assertIn(code, c, f"{code} not reported: {sorted(c)}")
+
+    def test_render_pptx_and_beamer(self):
+        out = os.path.join(self.tmp, "render")
+        run([script("group-meeting-deck", "deck.py"), "render", os.path.join(self.fx, "deck.md"), "--style",
+             "metropolis", "--format", "pptx,tex", "--math", "text", "--no-preview", "--out", out])
+        import pptxwriter
+        pptx = os.path.join(out, "deck.pptx")
+        self.assertEqual(pptxwriter.validate(pptx), [])
+        with zipfile.ZipFile(pptx) as z:
+            names = z.namelist()
+            self.assertEqual(sum(1 for n in names if n.startswith("ppt/slides/slide") and n.endswith(".xml")), 4)
+            self.assertIn("ppt/notesSlides/notesSlide2.xml", names)
+            self.assertIn("ppt/media/image1.png", names)
+            self.assertIn("0.913", z.read("ppt/slides/slide2.xml").decode())
+        tex = rd(os.path.join(out, "deck.tex"))
+        self.assertEqual(tex.count("\\begin{frame}"), 4)
+        self.assertIn("\\chip{verified}{VERIFIED}", tex)
+
+    def test_every_style_and_template(self):
+        for tpl in ("progress", "journal-club", "proposal", "deep-dive", "rehearsal"):
+            for lang in ("en", "zh"):
+                spec = os.path.join(self.tmp, f"{tpl}-{lang}.md")
+                run([script("group-meeting-deck", "deck.py"), "init", "--template", tpl, "--lang", lang, "--out", spec])
+                out = os.path.join(self.tmp, f"c-{tpl}-{lang}")
+                run([script("group-meeting-deck", "deck.py"), "check", spec, "--math", "text", "--out", out],
+                    ok_codes=(1,))
+                self.assertIn("PLACEHOLDER", self.codes(out))           # templates must be filled in
+        sys.path.insert(0, os.path.join(SK, "group-meeting-deck", "scripts"))
+        import deck_styles
+        for st in deck_styles.STYLES:
+            out = os.path.join(self.tmp, f"r-{st}")
+            run([script("group-meeting-deck", "deck.py"), "render", os.path.join(self.fx, "deck.md"), "--style", st,
+                 "--math", "text", "--no-preview", "--out", out])
+
+
+class ResearchPoster(SlidesBase):
+    def test_planted_errors(self):
+        out = os.path.join(self.tmp, "check")
+        run([script("research-poster", "poster.py"), "check", os.path.join(self.fx, "poster.md"), "--source",
+             os.path.join(self.fx, "results.csv"), "--max-size", "A1", "--math", "text", "--out", out], ok_codes=(1,))
+        c = self.codes(out)
+        for code in ("NO-TAKEAWAY", "PLACEHOLDER", "NUM-NOT-IN-SOURCE", "SIZE", "IMG-RESOLUTION"):
+            self.assertIn(code, c, f"{code} not reported: {sorted(c)}")
+        self.assertFalse(any("0.812" in r["message"] for r in c["NUM-NOT-IN-SOURCE"]))
+
+    def test_dense_poster_fails_font_minimum(self):
+        out = os.path.join(self.tmp, "dense")
+        run([script("research-poster", "poster.py"), "check", os.path.join(self.fx, "dense.md"), "--math", "text",
+             "--out", out], ok_codes=(1,))
+        c = self.codes(out)
+        self.assertTrue("FONT-MIN" in c or "OVERFLOW" in c, sorted(c))
+        self.assertIn("WORDS", c)
+
+    def test_render_every_style(self):
+        sys.path.insert(0, os.path.join(SK, "research-poster", "scripts"))
+        import poster_styles
+        import pptxwriter
+        for st in poster_styles.STYLES:
+            out = os.path.join(self.tmp, st)
+            run([script("research-poster", "poster.py"), "render", os.path.join(self.fx, "poster.md"), "--style", st,
+                 "--size", "A0-landscape", "--math", "text", "--no-preview", "--out", out])
+            pptx = os.path.join(out, "poster.pptx")
+            self.assertEqual(pptxwriter.validate(pptx), [], st)
+            pres = rd(os.path.join(out, "poster.html"))
+            self.assertIn("size: 46.81", pres)                      # A0 landscape width in inches
+        for tpl in ("empirical", "theory", "billboard"):
+            for lang in ("en", "zh"):
+                spec = os.path.join(self.tmp, f"{tpl}-{lang}.md")
+                run([script("research-poster", "poster.py"), "init", "--template", tpl, "--lang", lang, "--out", spec])
+                run([script("research-poster", "poster.py"), "render", spec, "--math", "text", "--no-preview",
+                     "--out", os.path.join(self.tmp, f"t-{tpl}-{lang}")])
+
+
+# ---------------------------------------------------------------------------
 # Repository conventions (see Contributing in README.md)
 # ---------------------------------------------------------------------------
 class SkillMetadata(unittest.TestCase):

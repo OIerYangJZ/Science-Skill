@@ -1,0 +1,2 @@
+{"_note": "Synthetic demo configuration (invented)",
+ "optimizer": "Adam", "learning_rate": 3e-4, "batch_size": 32, "epochs": 50, "seeds": [0, 1, 2, 3, 4]}

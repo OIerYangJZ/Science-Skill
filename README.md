@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-3776AB.svg?logo=python&logoColor=white)
 ![Dependencies: standard library only](https://img.shields.io/badge/dependencies-stdlib%20only-brightgreen.svg)
-![Skills: 9](https://img.shields.io/badge/skills-9-orange.svg)
+![Skills: 11](https://img.shields.io/badge/skills-11-orange.svg)
 ![Claude Code skills](https://img.shields.io/badge/Claude%20Code-skills-D97757.svg)
 
 **English** · [简体中文](README.zh-CN.md)
@@ -34,6 +34,8 @@ AI assistants are now part of how research gets written, analyzed and checked. T
 | suggests where to submit | it answers from memory; fees, rules and deadlines are out of date | [`venue-fit`](#venue-fit) |
 | writes a mock review | it echoes the authors' notes, and its "errors" are never verified | [`mock-review`](#mock-review) |
 | reports progress on a hard problem | it is more optimistic than the evidence and retries routes that already failed | [`dead-end-ledger`](#dead-end-ledger) |
+| makes group-meeting slides | it rewrites your wording, swaps your numbers, shows progress as more settled than it is, and guesses the talk length | [`group-meeting-deck`](#group-meeting-deck) |
+| makes a conference poster | claims get stronger or lose their conditions, numbers drift, text is too small and figures too coarse for print | [`research-poster`](#research-poster) |
 
 Each skill is a **written procedure** that Claude Code follows, backed by **standard-library Python scripts** that measure, trace or verify, so that conclusions rest on evidence rather than on the model's tone. Every skill was written after the corresponding failure occurred in a real project ([FAILURE_MODES.md](FAILURE_MODES.md)).
 
@@ -50,7 +52,7 @@ The skills are **discipline-agnostic**. They read LaTeX, Word, Markdown, plain-t
 - [Design principles](#design-principles)
 - [Installation](#installation)
 - [How a skill run works](#how-a-skill-run-works)
-- [Skill guide](#skill-guide): [paper-polish](#paper-polish) · [number-audit](#number-audit) · [experiment-integrity](#experiment-integrity) · [proof-audit](#proof-audit) · [cite-verify](#cite-verify) · [novelty-audit](#novelty-audit) · [venue-fit](#venue-fit) · [mock-review](#mock-review) · [dead-end-ledger](#dead-end-ledger)
+- [Skill guide](#skill-guide): [paper-polish](#paper-polish) · [number-audit](#number-audit) · [experiment-integrity](#experiment-integrity) · [proof-audit](#proof-audit) · [cite-verify](#cite-verify) · [novelty-audit](#novelty-audit) · [venue-fit](#venue-fit) · [mock-review](#mock-review) · [dead-end-ledger](#dead-end-ledger) · [group-meeting-deck](#group-meeting-deck) · [research-poster](#research-poster)
 - [Quick prompts without Claude Code](#quick-prompts-without-claude-code)
 - [Using the skills as gates in automated research pipelines](#using-the-skills-as-gates-in-automated-research-pipelines)
 - [Command-line tools](#command-line-tools) · [Supported inputs](#supported-inputs) · [Data sources and privacy](#data-sources-and-privacy)
@@ -226,6 +228,7 @@ flowchart LR
         b2["experiment-integrity"]
         b3["proof-audit"]
         b4["mock-review --quick"]
+        b5["group-meeting-deck"]
     end
     subgraph P3["3 · Before submitting"]
         direction TB
@@ -236,14 +239,16 @@ flowchart LR
         d1["mock-review (diagnose)"]
         d2["venue-fit (retarget)"]
         d3["paper-polish (reframe)"]
+        d4["research-poster (presenting)"]
     end
     P1 --> P2 --> P3 --> P4
 ```
 
 - **Before you start a project:** check whether the idea is already done or in progress elsewhere (`novelty-audit --mode scout`).
-- **While researching:** keep an honest ledger (`dead-end-ledger`); audit code once it stabilizes (`experiment-integrity`) and proofs before they are recorded as proved (`proof-audit`); test a framing cheaply (`mock-review --quick`).
+- **While researching:** keep an honest ledger (`dead-end-ledger`); audit code once it stabilizes (`experiment-integrity`) and proofs before they are recorded as proved (`proof-audit`); test a framing cheaply (`mock-review --quick`); report to your group with statuses taken from the ledger (`group-meeting-deck`).
 - **Before submitting:** `novelty-audit` → `venue-fit` → `paper-polish` → `number-audit` → `cite-verify` → `mock-review`, plus `experiment-integrity` or `proof-audit` if they have not run yet.
 - **After a decision:** diagnose the rejection, choose the next venue, reframe the editor-facing text.
+- **Presenting:** a poster at the venue's board size that says what the paper says (`research-poster`); a rehearsal deck with counted timing (`group-meeting-deck --template rehearsal`).
 
 ## Skills at a glance
 
@@ -258,6 +263,8 @@ flowchart LR
 | [`venue-fit`](#venue-fit) | Submission | Choosing a venue from impressions | Where similar work is published; venue profiles; official fact sheets with URLs and dates; fit assessment; plan and calendar |
 | [`mock-review`](#mock-review) | Submission | Mock reviews that are not independent, not verified, or tied to a moving manuscript | Isolated, version-pinned pack; independent reports; cross-discussion; verification; prioritized joint report; quick kill-argument mode |
 | [`dead-end-ledger`](#dead-end-ledger) | Research | Sycophantic progress reports; repeated attempts at failed routes | Research ledger with graded results, routes, dependencies and barriers; idea cards; stop rules; lint and dependency graph |
+| [`group-meeting-deck`](#group-meeting-deck) | Research, presenting | Slides that rewrite the author, drift from the numbers, overstate progress or run over time | Evidence ledger; editable PowerPoint (and Beamer) in one of seven styles chosen from a gallery; checks of numbers, ledger statuses, counted timing, legibility |
+| [`research-poster`](#research-poster) | Presenting | Posters that strengthen or strip claims, drift from the numbers, or cannot be read or printed | Claim ledger; editable PowerPoint and print PDF at the board size in one of six styles chosen from a gallery; measured fit; checks; passer-by test |
 
 ## Design principles
 
@@ -277,7 +284,7 @@ flowchart LR
 | | |
 |---|---|
 | Required | [Claude Code](https://claude.com/claude-code); Python 3.10 or later (standard library only; tested on Python 3.14) |
-| Optional | `pdftotext` (poppler) for PDF manuscripts; the GitHub CLI `gh` for repository searches in `novelty-audit`; `git` for `mock-review` packs of repositories |
+| Optional | `pdftotext` (poppler) for PDF manuscripts; the GitHub CLI `gh` for repository searches in `novelty-audit`; `git` for `mock-review` packs of repositories; for slides and posters, headless Chrome or Chromium (text measurement, PDF, previews), `pdftoppm` (PNG previews) and LaTeX (formulas, Beamer) |
 | Network | The public scholarly APIs listed under [Data sources and privacy](#data-sources-and-privacy) |
 
 **Install as personal skills** (recommended):
@@ -335,6 +342,8 @@ Every report script takes `--lang en|zh` and exits with 0 when there is no confi
 | venue-fit | `venue/<date>/` | No |
 | mock-review | `~/mock_review/<name>-<date>/` (outside the repository) | No |
 | dead-end-ledger | the ledger you name (e.g. `research/LEDGER.md`) and its notes | Only the ledger and the notes it manages |
+| group-meeting-deck | `deck/<date>/` | No; existing slide files are never overwritten |
+| research-poster | `poster/<date>/` | No |
 
 Example of a finished `number-audit` run:
 
@@ -929,6 +938,143 @@ python3 $G lint research/LEDGER.md --notes research/notes     # format, statuses
 python3 $G status research/LEDGER.md
 ```
 
+### group-meeting-deck
+
+> Group-meeting slides in a style you pick from a gallery of your own slides, with every number traced, every status at the ledger's strength, and the talk length counted.
+
+| | |
+|---|---|
+| **Use it when** | Preparing a weekly progress update, a journal club, a project proposal, a deep-dive on one result, or a rehearsal of an external talk |
+| **Not for** | Conference posters (`research-poster`) |
+| **Reads** | Results files, notebooks, the manuscript or the paper being presented, figures, the previous deck, the `dead-end-ledger` file |
+| **Writes** | `deck/<date>/`: `deck.pptx` (editable, with speaker notes), optional `deck.tex` (Beamer), `deck.pdf` and PNG previews, `evidence.md`, `check.md` |
+| **Stops for you** | Choosing the style; accepting any change to wording you wrote; numbers the sources do not contain |
+| **Network** | None |
+
+**Invoke**
+
+```text
+/group-meeting-deck results/ notes.md --template progress --minutes 15
+/group-meeting-deck paper.pdf --template journal-club --minutes 20 --style clean
+/group-meeting-deck main.tex --template rehearsal --minutes 12 --style metropolis    # also Beamer
+```
+
+**Seven styles**, all rendered from the same content (`deck.py gallery` shows your own slides in each one):
+
+![The seven slide styles rendered from the same synthetic demo deck](docs/img/deck-styles.png)
+
+| Style | Best for |
+|---|---|
+| `clean` | Weekly progress updates, mixed audiences; the default |
+| `assertion` | Assertion-evidence: each title a full-sentence claim, the body its evidence; deep-dives and rehearsals |
+| `metropolis` | Theory, mathematics, computer science; formula-heavy talks; pairs with Beamer output |
+| `campus` | Formal meetings and committee reviews in the institution colour (`--palette accent=#…`) |
+| `notebook` | Dense progress reports with many runs, tables and status chips |
+| `dark` | Code, simulations, imaging; screen sharing and dim rooms |
+| `minimal` | Short updates and pitches with few words per slide |
+
+**Five structure templates** (`deck.py init`, in English or Chinese): `progress` (where things stand → last time's plan and what happened → results → what did not work → questions for the group → next steps → backup), `journal-club`, `proposal`, `deep-dive`, `rehearsal`.
+
+**What happens**
+
+1. **Intake:** meeting type, length and Q&A time, audience, language, sources, ledger, group colours.
+2. **Evidence ledger:** every claim with its exact number, source location, status and limiting condition, including what failed or was blocked since the last meeting.
+3. **Content spec** in Markdown: one message per slide, numbers copied verbatim, status chips such as `{verified R1}`, `{negative X1}`, `{blocked X2}` with ledger IDs, speaker notes after `???`, backup slides.
+4. **Style choice** from the gallery.
+5. **Render** to PowerPoint (and Beamer), then inspect the previews for cut-off text, crowding and unreadable figures.
+6. **Check:** numbers against the sources, chips against the ledger, omitted negative results, counted timing, density, contrast, colour-vision safety, figure resolution, overflow.
+7. **Optional discussion preparation:** a subagent that sees only the slides asks the five hardest questions; answers become backup slides.
+
+**Example check output** (from the planted-error fixture in `tests/fixtures/slides/`):
+
+```text
+| code              | where              | finding                                                                  |
+| NUM-NOT-IN-SOURCE | slide 2 (Results)  | 0.913 is not in the sources                                              |
+| STATUS-UPGRADE    | slide 2 (Results)  | chip says VERIFIED for R2; the ledger says PRELIMINARY                   |
+| TIMING-OVER       | talk               | about 11.3 min of speaking for 4 min of talking time (5 min minus 1 min Q&A) |
+| IMG-RESOLUTION    | slide 3            | tiny.png: 120×80 px placed 7.9 in wide = 15 px/in                        |
+| CLAIM-STRONGER    | slide 2 (Results)  | adds significantly to the source sentence                                |
+| QUALIFIER-DROPPED | slide 2 (Results)  | drops under from the source sentence                                     |
+| NEGATIVE-OMITTED  | ledger             | X1 (NEGATIVE, 2026-10-30) is not mentioned                               |
+```
+
+**Scripts**
+
+```bash
+D=skills/group-meeting-deck/scripts/deck.py
+python3 $D styles                                                   # the seven styles
+python3 $D init --template progress --minutes 15 --lang zh --out deck/today/deck.md
+python3 $D gallery examples/demo/deck.md --out /tmp/gallery            # every style, your slides
+python3 $D render examples/demo/deck.md --style metropolis --format pptx,tex --compile --out /tmp/deck
+python3 $D check examples/demo/deck.md --minutes 12 --out /tmp/deck    # exit 1 while a FAIL remains
+```
+
+Options shared by `render`, `gallery` and `check`: `--palette accent=#0B5394`, `--font`, `--aspect 16:9|4:3|16:10`, `--math auto|image|text`. `render --quicklook` also previews the `.pptx` itself through macOS Quick Look. Spec format: [`references/spec-format.md`](skills/group-meeting-deck/references/spec-format.md); check codes: [`references/checks.md`](skills/group-meeting-deck/references/checks.md).
+
+**Tips.** Write speaker notes as what you will say, or set `{time=1.5}` on a slide: the timing counts notes at 130 words (250 CJK characters) per minute and reports slides without either as assumed. A BLOCKED chip says the work could not be done, not that the idea failed; present it that way.
+
+### research-poster
+
+> A conference poster at the venue's board size, in a style you pick from a gallery of your own poster, saying what the paper says.
+
+| | |
+|---|---|
+| **Use it when** | Preparing a poster for a conference, symposium or poster session (printed or digital) |
+| **Not for** | Slides (`group-meeting-deck`) |
+| **Reads** | The manuscript, results files, figures, logos; the venue's poster instructions page |
+| **Writes** | `poster/<date>/`: `poster.pptx` (one editable slide at the printed size), `poster.pdf` (print file), `preview.png`, `glance.png`, `claims.md`, `check.md` |
+| **Stops for you** | Choosing the style; the board size when the venue page does not state it; changes to your own wording |
+| **Network** | The venue's official page (size and deadlines) |
+
+**Invoke**
+
+```text
+/research-poster main.tex "Conference 2027" --size A0
+/research-poster manuscript.docx --size 48x36in --style billboard
+```
+
+**Six styles**, all rendered from the same content (`poster.py gallery` shows your own poster in each one):
+
+![The six poster styles rendered from the same synthetic demo poster](docs/img/poster-styles.png)
+
+| Style | Best for |
+|---|---|
+| `classic` | Traditional sessions in any field; navy banner, boxed sections; the default |
+| `billboard` | #betterposter: one plain-language finding in huge type with the key figure and QR code; busy halls |
+| `minimal` | HCI, CS, design; strict grid, numbered headings, one accent |
+| `dark` | Machine learning, astronomy, imaging; screens and digital sessions |
+| `journal` | Life and physical sciences; editorial look with figure panels labelled a, b, c |
+| `storyboard` | Method pipelines and broad audiences; numbered cards that read as a sequence |
+
+Sizes: A0, A1, A2, A3, B1, `A0-landscape`, `48x36in`, `36x48in`, `42x36in`, `36x24in`, or custom `900x1200mm`. Three structure templates: `empirical`, `theory`, `billboard` (English or Chinese).
+
+**What happens**
+
+1. **Intake:** source, venue instructions (board size and orientation with URL and date; unknown stays unknown), audience, colours, logos, QR target.
+2. **Claim ledger:** takeaway, title, panel titles and every number, each with its source location and the condition that limits it.
+3. **Content spec:** 300–800 words; one finding per panel; `{col=N}` for reading order, `{footer}` for references, `{center}` for the billboard key figure.
+4. **Style choice** from the gallery.
+5. **Render** to PowerPoint and a print PDF. Text is fitted by measurement: it grows to 120% of the style size when there is room and shrinks to 72% when there is not.
+6. **Check:** numbers and claims against the source, overflow, body text below 24 pt at A0 (scaled), figures below 100 px/in at print size, contrast, colour-vision safety, missing takeaway, size or orientation beyond the board.
+7. **Passer-by test:** a subagent that sees only `glance.png`, then `preview.png`, says what it takes away; the main session compares that with the claim ledger.
+
+**Scripts**
+
+```bash
+P=skills/research-poster/scripts/poster.py
+python3 $P styles; python3 $P sizes
+python3 $P init --template empirical --size A0 --out poster/today/poster.md
+python3 $P gallery examples/demo/poster.md --out /tmp/pgallery
+python3 $P render examples/demo/poster.md --style billboard --size A0-landscape --out /tmp/poster
+python3 $P check examples/demo/poster.md --max-size 841x1189mm --out /tmp/poster   # exit 1 while a FAIL remains
+```
+
+Spec format: [`references/spec-format.md`](skills/research-poster/references/spec-format.md); styles and typography: [`references/styles.md`](skills/research-poster/references/styles.md); check codes: [`references/checks.md`](skills/research-poster/references/checks.md).
+
+**Tips.** Export figures as PDF or SVG, or as PNG at 300 px/in at their printed width. The QR code is an image you supply. The `.pptx` is the editable master; print from `poster.pdf` after checking it at 100% zoom, because PowerPoint substitutes fonts that are not installed.
+
+**Rendering tools (optional, for both skills).** Headless Chrome or Chromium measures text and produces the PDF and previews. Without it, layout uses an estimate and you should check the `.pptx` by eye. LaTeX (pdflatex/xelatex) renders display formulas and compiles Beamer. Poppler (`pdftoppm`) makes PNG previews. On macOS, Quick Look previews the `.pptx` itself. Nothing is installed by the skills.
+
 ---
 
 ## Quick prompts without Claude Code
@@ -970,7 +1116,7 @@ flowchart LR
 | Before a result counts | `experiment-integrity` on the code; `proof-audit` for theoretical claims; `number-audit` guards on reported values | Results produced by the pipeline's own bugs, sentinels, leakage or unchecked proof steps |
 | Writing and review | `paper-polish`, `cite-verify`; `mock-review --quick` per iteration, a full `mock-review` before submission | Defensive or inflated drafts; unverified review claims |
 
-**Machine-checkable gates** (non-zero exit code on failure): `number_audit.py guard-check`, `ledger.py lint`, `ledger.py graph`, `review_pack.py check-pin`, and the four report scripts (`audit_report.py`, `review_report.py`, `integrity_report.py`, `numbers_report.py`: 1 for confirmed severe findings, 2 for a report that is not final). The other scripts produce leads that an agent or a person must read; `refcheck.py` writes `results.json` with ERROR and WARN issues per entry. The consent rules still apply inside a pipeline: long or paid runs, and anything sent to an outside service, need the user's approval.
+**Machine-checkable gates** (non-zero exit code on failure): `number_audit.py guard-check`, `ledger.py lint`, `ledger.py graph`, `review_pack.py check-pin`, `deck.py check`, `poster.py check`, and the four report scripts (`audit_report.py`, `review_report.py`, `integrity_report.py`, `numbers_report.py`: 1 for confirmed severe findings, 2 for a report that is not final). The other scripts produce leads that an agent or a person must read; `refcheck.py` writes `results.json` with ERROR and WARN issues per entry. The consent rules still apply inside a pipeline: long or paid runs, and anything sent to an outside service, need the user's approval.
 
 ## Command-line tools
 
@@ -987,6 +1133,8 @@ flowchart LR
 | `proof-audit/scripts/audit_report.py`, `mock-review/scripts/review_report.py`, `experiment-integrity/scripts/integrity_report.py`, `number-audit/scripts/numbers_report.py` | ledger; `--out`, `--lang`, `--manuscript`, `--version` (`--pin` for reviews) | Reports computed from findings ledgers; exit 0 / 1 / 2 |
 | `mock-review/scripts/review_pack.py` | `pack`, `check-pin` | Isolated, pinned review packs; detection of manuscript changes |
 | `dead-end-ledger/scripts/ledger.py` | `init`, `search`, `card`, `graph`, `lint`, `status` | Ledger creation, duplicate search, idea cards, dependency graph, checks |
+| `group-meeting-deck/scripts/deck.py` | `styles`, `templates`, `init`, `render`, `gallery`, `check` | Slides from a Markdown spec: PowerPoint, Beamer, previews, style gallery; checks (exit 1 on FAIL) |
+| `research-poster/scripts/poster.py` | `styles`, `sizes`, `init`, `render`, `gallery`, `check` | Posters from a Markdown spec: PowerPoint, print PDF, previews, style gallery; checks (exit 1 on FAIL) |
 
 Every script prints help with `--help`. Run the scripts that read downloaded content with `python3 -I`.
 
@@ -1001,6 +1149,7 @@ Every script prints help with `--help`. Run the scripts that read downloaded con
 | Statistics | Inline APA-style reports (`t(23) = 2.45, p = .02`, `F(2, 45) = 3.21, p < .05`, `χ2(1) = 3.84, p = .05`, `r(46) = .32, p = .03`, `z = 1.96, p = .05`); `k of n (x%)`; OR / RR / HR with 95% CI; `M = 3.48, n = 15` and `x% (n = 28)` (GRIM); `mean ± SD`; "from A to B, a C% / C-fold / C-point change" |
 | Proofs | LaTeX theorem-like environments (including `\newtheorem` and `\declaretheorem`), proof environments, `\ref`-family references, xr `\externaldocument` |
 | Code (integrity scan) | Python (AST); R, Julia, MATLAB, shell (regex) |
+| Slides and posters | A Markdown content spec ([format](skills/group-meeting-deck/references/spec-format.md)); figures in PNG, JPEG, GIF, SVG or PDF; output `.pptx`, Beamer `.tex`, PDF |
 
 ## Data sources and privacy
 
@@ -1026,6 +1175,7 @@ Other behavior:
 - The integrity scan reads Python precisely and other languages approximately. It finds patterns, not bugs; design problems are found by the claim-to-code verification and the checklist.
 - Subscription databases (Web of Science, Scopus, PsycINFO) are not queried; the skills hand such searches to you. Many humanities sources are not indexed in any of the services above.
 - Pattern scans and traces produce leads, not verdicts. The skills require each lead to be read in context.
+- Slide and poster layout is computed, not typeset by PowerPoint: text heights are measured in Chrome (or estimated without it), and PowerPoint substitutes fonts that are not installed, so check the file once on the presenting or printing machine. The claim-strength scan is English-specific; number tracing works in any language.
 - Mock reviews and editor simulations are run by models. They test whether a contribution can be found and whether claims are supported; they do not predict editorial decisions.
 
 ## FAQ
@@ -1100,9 +1250,11 @@ Science-Skill/
 │       ├── SKILL.md            procedure followed by Claude Code
 │       ├── references/         detailed rules, checklists, templates and examples
 │       └── scripts/            standalone scripts
-├── lib/                        shared modules: document reading, scholarly APIs, BibTeX/RIS, statistics
+├── lib/                        shared modules: document reading, scholarly APIs, BibTeX/RIS, statistics, PowerPoint writing and layout
 ├── prompts/                    calibrated-writing prompts for use without Claude Code
 ├── examples/README.md          a case study of a run on a real manuscript (process only)
+├── examples/demo/              synthetic demo deck and poster (figures, results, ledger) for trying the slide and poster skills
+├── docs/img/                   style galleries shown in this README
 ├── tests/
 │   ├── run_tests.py            regression tests
 │   └── fixtures/               synthetic inputs with planted errors
@@ -1124,7 +1276,7 @@ python3 tests/run_tests.py -v         # verbose output
 
 GitHub Actions runs the offline tests on every push and pull request, on Python 3.10–3.14 under Linux and on Python 3.14 under macOS. The online tests run on demand: start the workflow manually with `online` checked.
 
-The fixtures in [`tests/fixtures/`](tests/fixtures/) are synthetic and contain planted errors: an impossible mean, an SD above its bound, a wrong percentage change, a p-value that does not match its statistic, defensive phrasing, a random draw inside a condition, a sentinel return, placeholder data, a dependency cycle in a ledger, a circular proof, a retracted dependency, and a fabricated reference. Each test checks that the planted errors are reported and that the clean controls next to them are not. Further tests check repository conventions: every skill's frontmatter, its guide in both README files, and its row in `FAILURE_MODES.md`.
+The fixtures in [`tests/fixtures/`](tests/fixtures/) are synthetic and contain planted errors: an impossible mean, an SD above its bound, a wrong percentage change, a p-value that does not match its statistic, defensive phrasing, a random draw inside a condition, a sentinel return, placeholder data, a dependency cycle in a ledger, a circular proof, a retracted dependency, a fabricated reference, and for slides and posters a drifted number, a status chip stronger than the ledger, an omitted negative result, an over-long talk, a low-resolution figure, an unreadable colour, a missing takeaway and a poster larger than the board. Each test checks that the planted errors are reported and that the clean controls next to them are not. Further tests check repository conventions: every skill's frontmatter, its guide in both README files, and its row in `FAILURE_MODES.md`.
 
 ## Contributing
 
@@ -1146,7 +1298,7 @@ If Science-Skill helps your work, please cite it. GitHub's "Cite this repository
   title   = {Science-Skill: Claude Code skills against the failure modes of AI-assisted research},
   author  = {{OIerYangJZ}},
   year    = {2026},
-  version = {0.4.0},
+  version = {0.5.0},
   url     = {https://github.com/OIerYangJZ/Science-Skill},
   license = {MIT}
 }
