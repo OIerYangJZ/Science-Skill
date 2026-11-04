@@ -688,7 +688,10 @@ class ResearchPosterBrowser(SlidesBase):
         r = os.path.join(self.tmp, "r")
         run([script("research-poster", "poster.py"), "render", os.path.join(self.fx, "poster.md"), "--math", "text",
              "--out", r])
-        for name in ("poster.html", "poster.pdf", "poster-preview.png", "poster-glance.png"):
+        names = ["poster.html", "poster.pdf"]
+        if shutil.which("pdftoppm"):                       # PNG previews need poppler
+            names += ["poster-preview.png", "poster-glance.png"]
+        for name in names:
             self.assertTrue(os.path.exists(os.path.join(r, name)), name)
 
 
