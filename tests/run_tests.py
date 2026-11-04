@@ -554,6 +554,27 @@ class GroupMeetingDeck(SlidesBase):
         self.assertEqual(tex.count("\\begin{frame}"), 4)
         self.assertIn("\\chip{verified}{VERIFIED}", tex)
 
+    def test_beamer_style(self):
+        """The beamer style: Madrid palette derived from the accent in PowerPoint; the real theme in Beamer."""
+        out = os.path.join(self.tmp, "bm")
+        spec = os.path.join(self.fx, "deck.md")
+        wr(spec, rd(spec).replace("## Next", "## Block\n> Key message {title=\"Status\"}\n\n# Results\n\n## Next"))
+        run([script("group-meeting-deck", "deck.py"), "render", spec, "--style", "beamer", "--format", "pptx,tex",
+             "--palette", "accent=#7A1F2B", "--math", "text", "--no-preview", "--out", out])
+        tex = rd(os.path.join(out, "deck.tex"))
+        self.assertIn("\\usetheme{Madrid}", tex)
+        self.assertIn("\\usecolortheme[RGB={122,31,43}]{structure}", tex)
+        self.assertIn("\\begin{block}{Status}Key message\\end{block}", tex)
+        self.assertIn("\\sectionpage", tex)
+        with zipfile.ZipFile(os.path.join(out, "deck.pptx")) as z:
+            xml = "".join(z.read(n).decode() for n in z.namelist() if n.startswith("ppt/slides/slide"))
+        for colour in ("7A1F2B", "5C1720", "3D1016"):     # structure, !75!black, !50!black
+            self.assertIn(colour, xml)
+        out2 = os.path.join(self.tmp, "bm2")
+        run([script("group-meeting-deck", "deck.py"), "render", spec, "--style", "beamer", "--format", "tex",
+             "--beamer-theme", "Warsaw", "--math", "text", "--no-preview", "--out", out2])
+        self.assertIn("\\usetheme{Warsaw}", rd(os.path.join(out2, "deck.tex")))
+
     def test_every_style_and_template(self):
         for tpl in ("progress", "journal-club", "proposal", "deep-dive", "rehearsal"):
             for lang in ("en", "zh"):

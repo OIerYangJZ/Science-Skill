@@ -263,7 +263,7 @@ flowchart LR
 | [`venue-fit`](#venue-fit) | 投稿 | 凭印象选投稿去向 | 相似工作发在哪里；期刊档案；附网址和核对日期的官方事实表；匹配度评估；投稿计划与日程 |
 | [`mock-review`](#mock-review) | 投稿 | 模拟审稿不独立、不复核，稿件版本也不固定 | 隔离并锁定版本的审稿副本；独立报告；交叉讨论；核实；按优先级排序的联合报告；快速的致命论点模式 |
 | [`dead-end-ledger`](#dead-end-ledger) | 研究 | 讨好式的进展汇报；反复尝试已经失败的路线 | 研究账本：分级的结果、路线、依赖关系和障碍；想法卡片；止损规则；格式检查与依赖图 |
-| [`group-meeting-deck`](#group-meeting-deck) | 研究、汇报 | 幻灯片改写作者原意、数字走样、夸大进展或超时 | 证据台账；从样张中选定七种风格之一的可编辑 PowerPoint（及 Beamer）；数字、账本状态、计时与可读性检查 |
+| [`group-meeting-deck`](#group-meeting-deck) | 研究、汇报 | 幻灯片改写作者原意、数字走样、夸大进展或超时 | 证据台账；从样张中选定八种风格之一的可编辑 PowerPoint（及 Beamer）；数字、账本状态、计时与可读性检查 |
 | [`research-poster`](#research-poster) | 汇报 | 海报把主张说强或丢掉条件、数字走样、看不清或无法印刷 | 主张台账；从样张中选定六种风格之一、按展板尺寸生成的可编辑 PowerPoint 和印刷 PDF；实测排版；检查；路人测试 |
 
 ## 设计原则
@@ -959,9 +959,9 @@ python3 $G status research/LEDGER.md
 /group-meeting-deck main.tex --template rehearsal --minutes 12 --style metropolis    # 同时生成 Beamer
 ```
 
-**七种风格**，都由同一份内容渲染（`deck.py gallery` 用你自己的幻灯片逐一展示）：
+**八种风格**，都由同一份内容渲染（`deck.py gallery` 用你自己的幻灯片逐一展示）：
 
-![同一份合成演示幻灯片在七种风格下的效果](docs/img/deck-styles.png)
+![同一份合成演示幻灯片在八种风格下的效果](docs/img/deck-styles.png)
 
 | 风格 | 适合 |
 |---|---|
@@ -972,6 +972,7 @@ python3 $G status research/LEDGER.md
 | `notebook` | 运行次数多、表格多、状态标签多的密集进展汇报 |
 | `dark` | 代码、模拟、成像；屏幕共享和较暗的会议室 |
 | `minimal` | 每页字很少的简短汇报与想法提案 |
+| `beamer` | LaTeX Beamer 的 Madrid 主题外观（蓝色标题栏、圆角标题框、块、三段式页脚）；配合 `--format tex` 时直接使用真正的 `\usetheme{Madrid}`，也可用 `--beamer-theme` 换成其他主题 |
 
 **五种结构模板**（`deck.py init`，英文或中文）：`progress`（当前状态 → 上次计划与完成情况 → 结果 → 没有成功的尝试 → 需要大家帮助的问题 → 下一步 → 备用页）、`journal-club`、`proposal`、`deep-dive`、`rehearsal`。
 
@@ -1002,14 +1003,14 @@ python3 $G status research/LEDGER.md
 
 ```bash
 D=skills/group-meeting-deck/scripts/deck.py
-python3 $D styles                                                   # 七种风格
+python3 $D styles                                                   # 八种风格
 python3 $D init --template progress --minutes 15 --lang zh --out deck/today/deck.md
 python3 $D gallery examples/demo/deck.md --out /tmp/gallery            # 用你的幻灯片展示每种风格
 python3 $D render examples/demo/deck.md --style metropolis --format pptx,tex --compile --out /tmp/deck
 python3 $D check examples/demo/deck.md --minutes 12 --out /tmp/deck    # 仍有 FAIL 时退出码为 1
 ```
 
-`render`、`gallery`、`check` 共用的选项：`--palette accent=#0B5394`、`--font`、`--aspect 16:9|4:3|16:10`、`--math auto|image|text`。`render --quicklook` 还会用 macOS 快速查看直接预览 `.pptx` 本身。内容稿格式见 [`references/spec-format.md`](skills/group-meeting-deck/references/spec-format.md)，检查代码见 [`references/checks.md`](skills/group-meeting-deck/references/checks.md)。
+`render`、`gallery`、`check` 共用的选项：`--palette accent=#0B5394`、`--font`、`--aspect 16:9|4:3|16:10`、`--math auto|image|text`。使用 `--style beamer` 时，`> 文字 {title="状态"}` 会成为 Beamer 的块（block），Madrid 配色随 `--palette accent=…` 变化，`--beamer-theme Warsaw`（或 CambridgeUS、Boadilla、AnnArbor 等）可以更换 Beamer 文件的主题。`render --quicklook` 还会用 macOS 快速查看直接预览 `.pptx` 本身。内容稿格式见 [`references/spec-format.md`](skills/group-meeting-deck/references/spec-format.md)，检查代码见 [`references/checks.md`](skills/group-meeting-deck/references/checks.md)。
 
 **提示。** 备注写成你要说的话，或者在页面上写 `{time=1.5}`：计时按每分钟 130 个英文词（250 个汉字）统计备注，两者都没有的页面会标为"假定"。BLOCKED 标签表示工作没能做成，不表示想法失败，汇报时也要这样讲。
 

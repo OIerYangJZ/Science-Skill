@@ -75,6 +75,17 @@ STYLES: dict[str, dict] = {
         table_bg="#0F172A", table_zebra="#162033", table_border="#334155", footer_fg="#A3B1C6",
         section_bg="#0B1222", section_fg="#F8FAFC", cover="plain", frame_images=True, link="#7DD3FC",
     ),
+    "beamer": _s(
+        label="Beamer (Madrid)",
+        summary="The classic LaTeX Beamer look of the Madrid theme: blue title bar, rounded title box, ball bullets, "
+                "light-blue blocks for key messages, three-part blue footer (presenter, title, date and page).",
+        best_for="Groups used to LaTeX talks (mathematics, physics, engineering); decks shown next to Beamer slides. "
+                 "With --format tex the real Madrid theme is used.",
+        fg="#000000", muted="#4D4D4D", accent="#3333B3", title_bg="#3333B3", title_fg="#FFFFFF", title_pt=24,
+        title_bold=False, body_pt=22, section_bg="#FFFFFF", section_fg="#000000", footer="infolines",
+        footer_fg="#FFFFFF", cover="beamer", section_style="box", bullet="●", quote_box=True, quote_fg="#000000",
+        code_bg="#E9E9F3", beamer_theme="Madrid", max_words=70,
+    ),
     "minimal": _s(
         label="Minimal",
         summary="Large type, lots of white space, a single red accent; few words per slide.",
@@ -102,6 +113,20 @@ def get(name: str, palette: dict | None = None, font: str | None = None) -> dict
                 st["section_bg"] = v
             if st.get("title_rule") and name != "campus":
                 st["title_rule"] = v
+    if st.get("beamer_theme"):
+        # Beamer palette, derived from the structure colour as the whale and orchid colour themes do:
+        # palette primary = structure, secondary = structure!75!black, tertiary = structure!50!black,
+        # block title = structure!75!black, block body = block title!10!white.
+        import designkit as dk
+        a = st["accent"]
+        st["title_bg"] = (palette or {}).get("title_bg", a)
+        st["foot_left"] = dk.mix(a, "#000000", 0.5)
+        st["foot_mid"] = dk.mix(a, "#000000", 0.25)
+        st["foot_right"] = a
+        st["block_title_bg"] = dk.mix(a, "#000000", 0.25)
+        st["block_bg"] = dk.mix(st["block_title_bg"], "#FFFFFF", 0.9)
+        st["table_head_bg"] = (palette or {}).get("table_head_bg", st["block_title_bg"])
+        st["code_bg"] = (palette or {}).get("code_bg", st["block_bg"])
     if font:
         st["font_body"] = st["font_heading"] = font
     st.setdefault("link", st["accent"])
@@ -116,7 +141,13 @@ def text_pairs(st: dict) -> list[tuple[str, str, str, bool]]:
              ("table header", st["table_head_fg"], st["table_head_bg"], False),
              ("section slide", st["section_fg"], st["section_bg"], True),
              ("code", st["code_fg"], st["code_bg"], False)]
-    if st.get("footer_bg"):
+    if st.get("beamer_theme"):
+        pairs += [("footer, left box", st["footer_fg"], st["foot_left"], False),
+                  ("footer, middle box", st["footer_fg"], st["foot_mid"], False),
+                  ("footer, right box", st["footer_fg"], st["foot_right"], False),
+                  ("block title", "#FFFFFF", st["block_title_bg"], False),
+                  ("block body", st["fg"], st["block_bg"], False)]
+    elif st.get("footer_bg"):
         pairs.append(("footer", st["footer_fg"], st["footer_bg"], False))
     else:
         pairs.append(("footer", st["footer_fg"], st["bg"], False))

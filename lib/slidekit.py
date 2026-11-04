@@ -18,6 +18,7 @@ sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
 import designkit as dk          # noqa: E402
 import pptxwriter as px         # noqa: E402
 from slidespec import Element, Run, runs_text   # noqa: E402
+from slidespec import inline as inline_text     # noqa: E402
 
 LINE = 1.1 * 1.17 / 72.0        # inches per point of font size per line (twin line height)
 
@@ -119,9 +120,14 @@ class Ctx:
         return out
 
     def chip(self, status: str, size: float) -> list[dict]:
-        bg, fg, label = dk.STATUS.get(status, ("#E8E8E8", "#1A1A1A", status.upper()))
-        return [{"text": f"\u2009{label}\u2009", "size": size * 0.72, "bold": True, "color": fg, "highlight": bg},
-                {"text": "  ", "size": size}]
+        """A coloured square and the status word. Not a highlighted run: viewers without highlight support
+        (Quick Look, some Keynote and LibreOffice versions) would drop the background and hide a white label."""
+        bg, _fg, label = dk.STATUS.get(status, ("#E8E8E8", "#1A1A1A", status.upper()))
+        light = dk.contrast(bg, self.t["bg"]) < 1.6           # e.g. PLANNED (white), UNVERIFIED (light grey)
+        mark = {"text": "□ " if light else "■ ", "size": size * 1.0, "bold": False,
+                "color": self.t.get("muted", self.t["fg"]) if light else bg}
+        word = {"text": label, "size": size * 0.68, "bold": True, "color": self.t.get("fg")}
+        return [mark, word, {"text": "  ", "size": size}]
 
     def paras_for(self, e: Element, size: float, color: str | None = None, align: str = "l") -> list[dict]:
         t = self.t
@@ -279,6 +285,16 @@ def pieces(ctx: Ctx, elements: list[Element], w: float, size: float, key: str, c
     reqs = []
     for n, e in enumerate(elements):
         k = f"{key}.{n}"
+        if e.kind == "quote" and t.get("quote_box"):      # Beamer-style block: optional title bar, tinted body
+            inset = 0.1 * size / 18
+            body = [px.para(ctx.runs(e.runs, size, t["fg"]), size=size, line=t.get("line", 1.1))]
+            head = []
+            if e.attrs.get("title"):
+                head = [px.para(ctx.runs(inline_text(str(e.attrs["title"])), size, "#FFFFFF"), size=size, line=1.05)]
+                reqs.append((k + ".h", w - 2 * inset, head))
+            reqs.append((k + ".b", w - 2 * inset, body))
+            out.append(Piece("block", head=head, body=body, key=k, inset=inset))
+            continue
         if e.kind in ("para", "bullets", "quote", "code"):
             ps = ctx.paras_for(e, size, color, align)
             inset = 0.12 * size / 18 if e.kind == "code" else 0
@@ -329,7 +345,11 @@ def pieces(ctx: Ctx, elements: list[Element], w: float, size: float, key: str, c
             out.append(Piece("table", cells=cells, cw=cw, key=k, margin=margin))
     hs = ctx.measure(reqs)
     for p in out:
-        if p.kind == "text":
+        if p.kind == "block":
+            p.hh = hs[p.key + ".h"] + 2 * p.inset * 0.6 if p.head else 0.0
+            p.bh = hs[p.key + ".b"] + 2 * p.inset
+            p.h = p.hh + p.bh
+        elif p.kind == "text":
             p.h = hs[p.key] + 2 * p.inset
         elif p.kind == "image":
             p.h = hs.get(p.key, 0.0) + (size * 0.25 / 72 if p.caps else 0)
@@ -382,6 +402,17 @@ def draw_stack(ctx: Ctx, slide: px.Slide, ps: list[Piece], x: float, y: float, w
     for i, p in enumerate(ps):
         if i:
             cur += gap + (valign_space / max(1, len(ps) - 1) if valign_space else 0)
+        if p.kind == "block":
+            r = 0.08
+            if p.head:
+                slide.rect(x, cur, w, p.hh + r, fill=t["block_title_bg"], radius=r)
+                slide.text(x, cur, w, p.hh, p.head, inset=p.inset * 0.6, anchor="m", name=f"{where}:block-title")
+            slide.rect(x, cur + p.hh, w, p.bh, fill=t["block_bg"], radius=r)
+            if p.head:                                   # square the joint between title and body
+                slide.rect(x, cur + p.hh, w, min(r, p.bh / 2), fill=t["block_bg"])
+            slide.text(x, cur + p.hh, w, p.bh, p.body, inset=p.inset, name=f"{where}:block")
+            cur += p.h
+            continue
         if p.kind == "text":
             name = "quote" if p.quote else "text"
             slide.text(x, cur, w, p.h, p.paras, inset=p.inset, fill=p.fill, radius=0.06 if p.fill else None,

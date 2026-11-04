@@ -12,7 +12,7 @@ ledger: LEDGER.md
 ---
 
 ## Where things stand {time=1}
-> The new loss raises validation accuracy from 0.812 to 0.893 over 5 seeds; the out-of-distribution gain is not established.
+> The new loss raises validation accuracy from 0.812 to 0.893 over 5 seeds; the out-of-distribution gain is not established. {title="Status"}
 
 ???
 One sentence on the state of the project. The in-distribution result is verified by a labmate's re-run; the out-of-distribution result is still preliminary.

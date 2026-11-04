@@ -1,6 +1,6 @@
 ---
 name: group-meeting-deck
-description: Build slides for a research group meeting (weekly progress update, journal club, project proposal, result deep-dive, talk rehearsal) as an editable PowerPoint file and optionally Beamer, in one of seven visual styles (clean, assertion-evidence, metropolis, campus, notebook, dark, minimal) chosen from a side-by-side gallery of the user's own slides. Content and style are kept apart - a Markdown spec holds what the talk says, so the style can change without touching it. Every number is traced to the results or the manuscript; status chips (verified, preliminary, negative, blocked) are checked against the dead-end-ledger so progress is not reported as more than it is, and negative results are not left out; talk length is counted from the speaker notes, not guessed; overflow, font size, contrast and figure resolution are measured on a rendered preview. Use when the user asks for group meeting slides, a progress report deck, journal-club slides, or a practice talk. Not for conference posters (research-poster).
+description: Build slides for a research group meeting (weekly progress update, journal club, project proposal, result deep-dive, talk rehearsal) as an editable PowerPoint file and optionally Beamer, in one of eight styles (clean, assertion-evidence, metropolis, campus, notebook, dark, minimal, beamer / Madrid) chosen from a gallery of the user's own slides. Content and style are kept apart, so the style can change without touching the text. Every number is traced to the results or the manuscript; status chips (verified, preliminary, negative, blocked) are checked against the dead-end-ledger so progress is not reported as more than it is, and negative results are not left out; talk length is counted from the speaker notes, not guessed; overflow, font size, contrast and figure resolution are measured on a rendered preview. Use when the user asks for group meeting slides, a progress report deck, journal-club slides, or a practice talk. Not for conference posters (research-poster).
 argument-hint: "[results, manuscript or notes] [--template progress|journal-club|proposal|deep-dive|rehearsal] [--minutes 15] [--style name]"
 ---
 
@@ -70,7 +70,7 @@ Leave `[[placeholders]]` for anything the sources do not contain and list them f
 $D gallery deck/<date>/deck.md --out deck/<date>/gallery
 ```
 
-Show `gallery.png` (Read it) and ask the user to choose (AskUserQuestion with the style names and the "best for" line; recommend one based on the meeting type and content, for example metropolis for formula-heavy theory, notebook for many tables and status items, assertion for a deep-dive). The seven styles and when to use them are in `references/styles.md`.
+Show `gallery.png` (Read it) and ask the user to choose (AskUserQuestion with the style names and the "best for" line; recommend one based on the meeting type and content, for example metropolis or beamer for formula-heavy theory, notebook for many tables and status items, assertion for a deep-dive). The eight styles and when to use them are in `references/styles.md`.
 
 ## Phase 4: Render and inspect
 
@@ -78,7 +78,7 @@ Show `gallery.png` (Read it) and ask the user to choose (AskUserQuestion with th
 $D render deck/<date>/deck.md --style <chosen> --format pptx[,tex] [--compile] [--quicklook] --out deck/<date>
 ```
 
-- `deck.pptx` is the deliverable (editable, speaker notes included); `deck.tex` is Beamer source if requested.
+- `deck.pptx` is the deliverable (editable, speaker notes included); `deck.tex` is Beamer source if requested. With `--style beamer`, the PowerPoint file imitates the Madrid theme and `deck.tex` uses the real `\usetheme{Madrid}` (or another installed theme via `--beamer-theme Warsaw`), with the structure colour taken from the accent.
 - Read the preview PNGs (`preview/slide-NNN.png`; on macOS `--quicklook` also renders the .pptx itself). Look for text that is cut off, crowded slides, figures too small to read from the back of the room, and chips or colours that do not read.
 - Fix the spec (not the .pptx) and re-render until the previews are clean.
 

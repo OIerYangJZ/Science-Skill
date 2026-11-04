@@ -20,6 +20,7 @@ Simple `key: value` lines between `---` lines (not full YAML).
 | `footer` | Text in the footer of every slide |
 | `cover` | `no` to omit the cover slide |
 | `notes` | Speaker notes of the cover slide |
+| `beamer-theme` | With the `beamer` style: the Beamer theme for `--format tex` (default Madrid) |
 
 ## Body
 
@@ -39,7 +40,7 @@ Simple `key: value` lines between `---` lines (not full YAML).
 | `![Caption](path){width=70%}` | Figure: PNG, JPEG, GIF, SVG or PDF (converted for PowerPoint) |
 | `\| a \| b \|` rows | Table; the first row is the header |
 | `$$ ... $$` | Display formula: rendered with LaTeX when installed, else Unicode text |
-| `> text` | Key message; a slide with only a quote becomes a statement slide |
+| `> text` | Key message; a slide with only a quote becomes a statement slide. In the `beamer` style it is a block; `> text {title="Result"}` adds the block title |
 | ```` ``` ```` fences | Code block |
 | `:::` | Column break |
 | `???` | Speaker notes for this slide follow, until the next heading |

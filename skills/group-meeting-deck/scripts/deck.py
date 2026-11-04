@@ -24,6 +24,7 @@ Options shared by render, gallery and check
   --palette accent=#0B5394,fg=#222222   override style colours (institution colours)
   --font "Source Sans Pro"              one font for headings and body
   --math auto|image|text                display formulas via LaTeX images (auto: when LaTeX exists)
+  --beamer-theme Warsaw                 with --style beamer: Beamer theme for --format tex (default Madrid)
 """
 from __future__ import annotations
 
@@ -66,7 +67,11 @@ def style_for(spec: ss.Spec, args) -> dict:
     name = getattr(args, "style", None) or spec.get("style") or "clean"
     pal = parse_palette(spec.get("palette"))
     pal.update(parse_palette(getattr(args, "palette", None)))
-    return DS.get(name, pal, getattr(args, "font", None) or spec.get("font"))
+    st = DS.get(name, pal, getattr(args, "font", None) or spec.get("font"))
+    theme = getattr(args, "beamer_theme", None) or spec.get("beamer-theme")
+    if theme and st.get("beamer_theme"):
+        st["beamer_theme"] = theme          # Beamer output only (Warsaw, CambridgeUS, Boadilla, ...)
+    return st
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +91,7 @@ class Deck:
                                      "accent2": st.get("accent2")},
                             title=spec.get("title", ""), author=spec.get("presenter", ""))
         self.slides: list[dict] = []
-        self.footer_h = 0.45 if st["footer"] == "full" else 0.35
+        self.footer_h = {"full": 0.45, "infolines": 0.28}.get(st["footer"], 0.35)
 
     # --- helpers ---------------------------------------------------------------
     def plan(self) -> list[tuple[str, ss.Block | None, bool]]:
@@ -132,6 +137,22 @@ class Deck:
         st = self.st
         W, H = self.W, self.H
         page = "Backup" if backup else f"{k_main} / {self.n_main}"
+        if st["footer"] == "infolines":           # Beamer infolines: three boxes in shades of the structure colour
+            fh = self.footer_h
+            fg = st["footer_fg"]
+            who = self.spec.get("presenter", "")
+            if self.spec.get("group"):
+                who = f"{who} ({self.spec.get('group')})" if who else self.spec.get("group")
+            mid = self.spec.get("footer") or self.spec.get("title", "")
+            right = "    ".join(x for x in (self.spec.get("date", ""), page) if x)
+            third = W / 3
+            for i, (txt, fill, al) in enumerate(((who, st["foot_left"], "c"), (mid, st["foot_mid"], "c"),
+                                                 (right, st["foot_right"], "r"))):
+                s.rect(i * third, H - fh, third + 0.01, fh, fill=fill)
+                s.text(i * third + 0.15, H - fh, third - 0.3, fh,
+                       [px.para(self.ctx.runs(ss.inline(txt), 10, fg), size=10, align=al)], anchor="m", inset=0,
+                       name="footer")
+            return
         if st["footer"] == "full":
             fh = self.footer_h
             s.rect(0, H - fh, W, fh, fill=st["footer_bg"])
@@ -174,6 +195,31 @@ class Deck:
         who = " · ".join(x for x in (meta.get("presenter", ""), meta.get("group", "")) if x)
         when = " · ".join(x for x in (meta.get("venue", ""), meta.get("date", "")) if x)
         tw = W - 2 * mx
+        if st["cover"] == "beamer":               # Madrid title page: rounded title box, centred details below
+            bw = tw * 0.96
+            bx = (W - bw) / 2
+            ps = [self.tpara(title_runs, 30, st["title_fg"], bold=False, align="c")]
+            if sub:
+                ps.append(px.para(self.ctx.runs(ss.inline(sub), 20, st["title_fg"]), size=20, align="c",
+                                  space_before=6))
+            th = self.ctx.measure([("cover", bw - 0.4, ps)])["cover"] + 0.45
+            top = H * 0.2
+            s.rect(bx + 0.05, top + 0.06, bw, th, fill=dk.mix(st["bg"], "#000000", 0.25), radius=0.12)   # shadow
+            s.rect(bx, top, bw, th, fill=st["title_bg"], radius=0.12)
+            s.text(bx + 0.2, top, bw - 0.4, th, ps, anchor="m", name="cover-title")
+            det = []
+            if meta.get("presenter"):
+                det.append(px.para(self.ctx.runs(ss.inline(meta["presenter"]), 22, st["fg"]), size=22, align="c"))
+            if meta.get("group"):
+                det.append(px.para(self.ctx.runs(ss.inline(meta["group"]), 16, st["fg"]), size=16, align="c",
+                                   space_before=14))
+            if when:
+                det.append(px.para(self.ctx.runs(ss.inline(when), 20, st["fg"]), size=20, align="c", space_before=14))
+            if det:
+                s.text(mx, top + th + 0.45, tw, 2.2, det, name="cover-details")
+            self.footer(s, 1, False)
+            s.notes = self.spec.get("notes", "")
+            return
         if st["cover"] == "band":
             band_h = H * 0.48
             s.rect(0, 0, W, band_h, fill=st["title_bg"] or st["accent"])
@@ -210,6 +256,20 @@ class Deck:
     def section(self, b: ss.Block, info, k_main):
         st, W, H, mx = self.st, self.W, self.H, self.mx
         s = self.pres.slide(bg=st["section_bg"])
+        if st.get("section_style") == "box":      # Beamer \sectionpage: rounded box with the section title
+            self.n_sections = getattr(self, "n_sections", 0) + 1
+            bw = (W - 2 * mx) * 0.96
+            bx = (W - bw) / 2
+            if not info["backup"]:
+                s.text(mx, H * 0.27, W - 2 * mx, 0.5, [px.para(f"Section {self.n_sections}", size=22, color=st["fg"],
+                                                               align="c")], anchor="b", name="section-label")
+            s.rect(bx + 0.05, H * 0.36 + 0.06, bw, 0.85, fill=dk.mix(st["bg"], "#000000", 0.25), radius=0.12)
+            s.rect(bx, H * 0.36, bw, 0.85, fill=st["title_bg"], radius=0.12)
+            s.text(bx, H * 0.36, bw, 0.85, [self.tpara(b.title, 24, st["title_fg"], bold=False, align="c")],
+                   anchor="m", name="section-title")
+            self.footer(s, k_main, info["backup"])
+            s.notes = b.notes
+            return
         ps = [self.tpara(b.title, 36, st["section_fg"], bold=st["title_bold"])]
         s.text(mx, H * 0.36, W - 2 * mx, 1.6, ps, anchor="m", name="section-title")
         line = st["accent"] if st["section_bg"] in (st["bg"], "#FFFFFF") or st["name"] == "metropolis" else \
@@ -223,12 +283,12 @@ class Deck:
         size = st["title_pt"]
         top = 0.5 if st.get("strip") else 0.32
         if st.get("title_bg"):
-            band = 1.0
-            ps = [self.tpara(b.title, size, st["title_fg"])]
+            band = 0.85 if st.get("beamer_theme") else 1.0
+            ps = [self.tpara(b.title, size, st["title_fg"], bold=st["title_bold"])]
             h = self.ctx.measure([("t", tw, ps)])["t"]
             if h > band - 0.15:
                 size *= 0.82
-                ps = [self.tpara(b.title, size, st["title_fg"])]
+                ps = [self.tpara(b.title, size, st["title_fg"], bold=st["title_bold"])]
                 h = self.ctx.measure([("t", tw, ps)])["t"]
                 band = max(band, h + 0.25)
             s.rect(0, 0, W, band, fill=st["title_bg"])
@@ -278,7 +338,7 @@ class Deck:
                 layout = "columns"
             elif n_img == 1 and len(b.elements) > 1 and text_words > 25 and not st.get("assertion"):
                 layout = "split"
-            elif len(b.elements) == 1 and b.elements[0].kind == "quote":
+            elif len(b.elements) == 1 and b.elements[0].kind == "quote" and not st.get("quote_box"):
                 layout = "statement"
             else:
                 layout = "stack"
@@ -401,54 +461,64 @@ def beamer(spec: ss.Spec, st: dict, aspect: str, outdir: str, ctx: sk.Ctx | None
                  f"\\definecolor{{chip{name.replace('-', '')}fg}}{{HTML}}{{{_hex(fg)}}}")
     L += ["\\newcommand{\\chip}[2]{\\colorbox{chip#1bg}{\\textcolor{chip#1fg}{\\scriptsize\\bfseries #2}}\\,}",
           "\\setbeamertemplate{navigation symbols}{}",
-          "\\setbeamercolor{normal text}{fg=ssfg,bg=ssbg}", "\\setbeamercolor{structure}{fg=ssaccent}",
-          "\\setbeamercolor{alerted text}{fg=ssaccent}", "\\setbeamercolor{frametitle}{fg=sstitlefg,bg=sstitlebg}",
-          "\\setbeamercolor{title}{fg=" + ("ssfg" if st.get("title_bg") else "sstitlefg") + "}", "\\hypersetup{colorlinks=true,urlcolor=sslink,linkcolor=ssfg}",
-          "\\setbeamertemplate{itemize item}{\\color{ssaccent}\\raisebox{0.1ex}{\\small$\\bullet$}}",
-          "\\setbeamertemplate{itemize subitem}{\\color{ssaccent}\\raisebox{0.1ex}{\\scriptsize$\\bullet$}}",
-          "\\setbeamertemplate{enumerate item}{\\color{ssaccent}\\insertenumlabel.}",
-          "\\setbeamerfont{frametitle}{size=\\Large,series=\\bfseries}",
+          "\\hypersetup{colorlinks=true,urlcolor=sslink,linkcolor=ssfg}",
           "\\setbeamerfont{caption}{size=\\footnotesize}",
           "\\setbeamertemplate{caption}{\\raggedright\\usebeamercolor[fg]{normal text}\\color{ssmuted}\\insertcaption\\par}"]
-    if st["font_heading"] == DS.SERIF:
-        L.append("\\setbeamerfont{frametitle}{family=\\rmfamily,size=\\Large,series=\\bfseries}")
-    if st.get("title_bg"):
-        prog = ("\\begin{tikzpicture}\\fill[ssaccent] (0,0) rectangle "
-                "({\\paperwidth*min(1,\\insertframenumber/max(1,\\inserttotalframenumber))},0.5pt);\\end{tikzpicture}"
-                if st.get("progress") else "")
-        rule = "{\\color{ssrule}\\rule{\\paperwidth}{2pt}}" if st.get("title_rule") else ""
-        L.append("\\setbeamertemplate{frametitle}{\\nointerlineskip\\begin{beamercolorbox}[wd=\\paperwidth,ht=2.8ex,"
-                 "dp=1.6ex,leftskip=1.1em]{frametitle}\\usebeamerfont{frametitle}\\insertframetitle"
-                 f"\\end{{beamercolorbox}}\\par\\nointerlineskip{prog}{rule}\\vspace*{{0.4em}}}}")
+    theme = st.get("beamer_theme")
+    if theme:
+        # the real Beamer theme; the structure colour follows the style accent (palette overrides included)
+        L.insert(1, f"\\usetheme{{{theme}}}")
+        if st["accent"].upper() != "#3333B3":
+            r, g, b = dk.hex_rgb(st["accent"])
+            L.insert(2, f"\\usecolortheme[RGB={{{r},{g},{b}}}]{{structure}}")
     else:
-        rule = "\\par\\vspace*{0.15em}{\\color{ssrule}\\rule{3em}{2pt}}" if st.get("title_rule") else ""
-        L.append("\\setbeamertemplate{frametitle}{\\vspace*{0.7em}{\\usebeamerfont{frametitle}"
-                 f"\\usebeamercolor[fg]{{frametitle}}\\insertframetitle}}{rule}\\par\\vspace*{{0.3em}}}}")
-    if st["footer"] == "full":
-        L.append("\\setbeamertemplate{footline}{\\begin{beamercolorbox}[wd=\\paperwidth,ht=2.4ex,dp=1ex]{}"
-                 "\\color{ssfootfg}\\scriptsize\\hspace*{1em}\\insertshortauthor\\hfill\\insertshorttitle\\hfill"
-                 "\\insertshortdate\\quad\\insertframenumber/\\inserttotalframenumber\\hspace*{1em}"
-                 "\\end{beamercolorbox}}\\setbeamercolor{footline}{bg=ssfootbg}")
-        L.append("\\makeatletter\\setbeamertemplate{footline}{\\begin{tikzpicture}[remember picture,overlay]"
-                 "\\fill[ssfootbg] (current page.south west) rectangle ([yshift=3.6ex]current page.south east);"
-                 "\\end{tikzpicture}\\leavevmode\\color{ssfootfg}\\scriptsize\\hspace*{1em}\\insertshortauthor"
-                 "\\hfill\\insertshorttitle\\hfill\\insertshortdate\\quad\\insertframenumber/"
-                 "\\inserttotalframenumber\\hspace*{1em}\\vspace*{1.2ex}}\\makeatother")
-    elif st["footer"] == "page":
-        L.append("\\setbeamertemplate{footline}{\\hfill{\\color{ssfootfg}\\scriptsize\\insertframenumber/"
-                 "\\inserttotalframenumber}\\hspace*{1.2em}\\vspace*{0.8em}}")
-    L.append("\\setbeamertemplate{title page}{\\vfill{\\usebeamerfont{title}\\usebeamercolor[fg]{title}"
-             "\\LARGE\\bfseries\\inserttitle\\par}\\ifx\\insertsubtitle\\empty\\else\\vspace*{0.4em}"
-             "{\\large\\color{ssmuted}\\insertsubtitle\\par}\\fi\\vspace*{0.6em}{\\color{ssaccent}\\rule{4em}{2pt}}"
-             "\\par\\vspace*{0.8em}{\\bfseries\\insertauthor\\par}\\vspace*{0.3em}{\\small\\color{ssmuted}"
-             "\\insertinstitute\\par\\insertdate\\par}\\vfill}")
+        L += ["\\setbeamercolor{normal text}{fg=ssfg,bg=ssbg}", "\\setbeamercolor{structure}{fg=ssaccent}",
+              "\\setbeamercolor{alerted text}{fg=ssaccent}", "\\setbeamercolor{frametitle}{fg=sstitlefg,bg=sstitlebg}",
+              "\\setbeamercolor{title}{fg=" + ("ssfg" if st.get("title_bg") else "sstitlefg") + "}",
+              "\\setbeamertemplate{itemize item}{\\color{ssaccent}\\raisebox{0.1ex}{\\small$\\bullet$}}",
+              "\\setbeamertemplate{itemize subitem}{\\color{ssaccent}\\raisebox{0.1ex}{\\scriptsize$\\bullet$}}",
+              "\\setbeamertemplate{enumerate item}{\\color{ssaccent}\\insertenumlabel.}",
+              "\\setbeamerfont{frametitle}{size=\\Large,series=\\bfseries}"]
+        if st["font_heading"] == DS.SERIF:
+            L.append("\\setbeamerfont{frametitle}{family=\\rmfamily,size=\\Large,series=\\bfseries}")
+        if st.get("title_bg"):
+            prog = ("\\begin{tikzpicture}\\fill[ssaccent] (0,0) rectangle "
+                    "({\\paperwidth*min(1,\\insertframenumber/max(1,\\inserttotalframenumber))},0.5pt);\\end{tikzpicture}"
+                    if st.get("progress") else "")
+            rule = "{\\color{ssrule}\\rule{\\paperwidth}{2pt}}" if st.get("title_rule") else ""
+            L.append("\\setbeamertemplate{frametitle}{\\nointerlineskip\\begin{beamercolorbox}[wd=\\paperwidth,ht=2.8ex,"
+                     "dp=1.6ex,leftskip=1.1em]{frametitle}\\usebeamerfont{frametitle}\\insertframetitle"
+                     f"\\end{{beamercolorbox}}\\par\\nointerlineskip{prog}{rule}\\vspace*{{0.4em}}}}")
+        else:
+            rule = "\\par\\vspace*{0.15em}{\\color{ssrule}\\rule{3em}{2pt}}" if st.get("title_rule") else ""
+            L.append("\\setbeamertemplate{frametitle}{\\vspace*{0.7em}{\\usebeamerfont{frametitle}"
+                     f"\\usebeamercolor[fg]{{frametitle}}\\insertframetitle}}{rule}\\par\\vspace*{{0.3em}}}}")
+        if st["footer"] == "full":
+            L.append("\\setbeamertemplate{footline}{\\begin{beamercolorbox}[wd=\\paperwidth,ht=2.4ex,dp=1ex]{}"
+                     "\\color{ssfootfg}\\scriptsize\\hspace*{1em}\\insertshortauthor\\hfill\\insertshorttitle\\hfill"
+                     "\\insertshortdate\\quad\\insertframenumber/\\inserttotalframenumber\\hspace*{1em}"
+                     "\\end{beamercolorbox}}\\setbeamercolor{footline}{bg=ssfootbg}")
+            L.append("\\makeatletter\\setbeamertemplate{footline}{\\begin{tikzpicture}[remember picture,overlay]"
+                     "\\fill[ssfootbg] (current page.south west) rectangle ([yshift=3.6ex]current page.south east);"
+                     "\\end{tikzpicture}\\leavevmode\\color{ssfootfg}\\scriptsize\\hspace*{1em}\\insertshortauthor"
+                     "\\hfill\\insertshorttitle\\hfill\\insertshortdate\\quad\\insertframenumber/"
+                     "\\inserttotalframenumber\\hspace*{1em}\\vspace*{1.2ex}}\\makeatother")
+        elif st["footer"] == "page":
+            L.append("\\setbeamertemplate{footline}{\\hfill{\\color{ssfootfg}\\scriptsize\\insertframenumber/"
+                     "\\inserttotalframenumber}\\hspace*{1.2em}\\vspace*{0.8em}}")
+        L.append("\\setbeamertemplate{title page}{\\vfill{\\usebeamerfont{title}\\usebeamercolor[fg]{title}"
+                 "\\LARGE\\bfseries\\inserttitle\\par}\\ifx\\insertsubtitle\\empty\\else\\vspace*{0.4em}"
+                 "{\\large\\color{ssmuted}\\insertsubtitle\\par}\\fi\\vspace*{0.6em}{\\color{ssaccent}\\rule{4em}{2pt}}"
+                 "\\par\\vspace*{0.8em}{\\bfseries\\insertauthor\\par}\\vspace*{0.3em}{\\small\\color{ssmuted}"
+                 "\\insertinstitute\\par\\insertdate\\par}\\vfill}")
     meta = spec.meta
     L += [f"\\title{{{runs_tex(ss.inline(meta.get('title', '')))}}}",
           f"\\subtitle{{{runs_tex(ss.inline(meta.get('subtitle', '')))}}}",
           f"\\author{{{runs_tex(ss.inline(meta.get('presenter', '')))}}}",
           f"\\institute{{{runs_tex(ss.inline(meta.get('group', '')))}}}",
           f"\\date{{{runs_tex(ss.inline(' · '.join(x for x in (meta.get('venue', ''), meta.get('date', '')) if x)))}}}",
-          "\\begin{document}", "\\begin{frame}[plain]\\titlepage\\end{frame}" if meta.get("title") else ""]
+          "\\begin{document}", ("\\begin{frame}\\titlepage\\end{frame}" if theme else
+                                 "\\begin{frame}[plain]\\titlepage\\end{frame}") if meta.get("title") else ""]
 
     def img_tex(e: ss.Element, height: str) -> str:
         path = spec.resolve(e.path)
@@ -473,6 +543,9 @@ def beamer(spec: ss.Spec, st: dict, aspect: str, outdir: str, ctx: sk.Ctx | None
         for e in els:
             if e.kind in ("para",):
                 out.append(runs_tex(e.runs) + "\\par\\medskip")
+            elif e.kind == "quote" and theme:
+                title = runs_tex(ss.inline(str(e.attrs["title"]))) if e.attrs.get("title") else ""
+                out.append(f"\\begin{{block}}{{{title}}}{runs_tex(e.runs)}\\end{{block}}")
             elif e.kind == "quote":
                 out.append(f"{{\\large\\bfseries\\color{{ssaccent}}{runs_tex(e.runs)}}}\\par\\medskip")
             elif e.kind == "bullets":
@@ -520,6 +593,10 @@ def beamer(spec: ss.Spec, st: dict, aspect: str, outdir: str, ctx: sk.Ctx | None
             if (BACKUP_RX.match(b.title_text) or b.attrs.get("backup")) and not backup:
                 backup = True
                 L.append("\\appendix")
+            if theme:
+                L += [f"\\section{{{runs_tex(b.title)}}}", "\\begin{frame}\\sectionpage",
+                      (f"\\note{{{tesc(b.notes)}}}" if b.notes else ""), "\\end{frame}"]
+                continue
             L += ["{\\setbeamercolor{background canvas}{bg=sssectionbg}\\begin{frame}[plain]\\vfill",
                   f"{{\\color{{sssectionfg}}\\LARGE\\bfseries {runs_tex(b.title)}\\par}}\\vspace*{{0.5em}}"
                   "{\\color{ssaccent}\\rule{4em}{2pt}}\\vfill",
@@ -532,7 +609,8 @@ def beamer(spec: ss.Spec, st: dict, aspect: str, outdir: str, ctx: sk.Ctx | None
         cols_ = sk.split_columns(b.elements)
         n_img = sum(1 for e in b.elements if e.kind == "image")
         L.append(f"\\begin{{frame}}{{{runs_tex(b.title)}}}\\relax")   # \\relax: a following {...} is not a subtitle
-        if layout == "statement" or (not layout and len(b.elements) == 1 and b.elements[0].kind == "quote"):
+        if layout == "statement" or (not layout and len(b.elements) == 1 and b.elements[0].kind == "quote"
+                                     and not theme):
             e = b.elements[0] if b.elements else None
             txt = runs_tex(e.runs) if e is not None and e.kind in ("para", "quote") else ""
             L.append(f"\\vfill\\begin{{center}}{{\\Large\\bfseries\\color{{ssaccent}}{txt}}}\\end{{center}}\\vfill")
@@ -911,6 +989,7 @@ def main(argv=None):
         a.add_argument("--palette")
         a.add_argument("--font")
         a.add_argument("--math", choices=("auto", "image", "text"), default="auto")
+        a.add_argument("--beamer-theme", help="with --style beamer: the Beamer theme for --format tex (default Madrid)")
         a.add_argument("--out", required=True)
     a = sp.add_parser("render")
     common(a)

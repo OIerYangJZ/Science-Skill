@@ -263,7 +263,7 @@ flowchart LR
 | [`venue-fit`](#venue-fit) | Submission | Choosing a venue from impressions | Where similar work is published; venue profiles; official fact sheets with URLs and dates; fit assessment; plan and calendar |
 | [`mock-review`](#mock-review) | Submission | Mock reviews that are not independent, not verified, or tied to a moving manuscript | Isolated, version-pinned pack; independent reports; cross-discussion; verification; prioritized joint report; quick kill-argument mode |
 | [`dead-end-ledger`](#dead-end-ledger) | Research | Sycophantic progress reports; repeated attempts at failed routes | Research ledger with graded results, routes, dependencies and barriers; idea cards; stop rules; lint and dependency graph |
-| [`group-meeting-deck`](#group-meeting-deck) | Research, presenting | Slides that rewrite the author, drift from the numbers, overstate progress or run over time | Evidence ledger; editable PowerPoint (and Beamer) in one of seven styles chosen from a gallery; checks of numbers, ledger statuses, counted timing, legibility |
+| [`group-meeting-deck`](#group-meeting-deck) | Research, presenting | Slides that rewrite the author, drift from the numbers, overstate progress or run over time | Evidence ledger; editable PowerPoint (and Beamer) in one of eight styles chosen from a gallery; checks of numbers, ledger statuses, counted timing, legibility |
 | [`research-poster`](#research-poster) | Presenting | Posters that strengthen or strip claims, drift from the numbers, or cannot be read or printed | Claim ledger; editable PowerPoint and print PDF at the board size in one of six styles chosen from a gallery; measured fit; checks; passer-by test |
 
 ## Design principles
@@ -959,9 +959,9 @@ python3 $G status research/LEDGER.md
 /group-meeting-deck main.tex --template rehearsal --minutes 12 --style metropolis    # also Beamer
 ```
 
-**Seven styles**, all rendered from the same content (`deck.py gallery` shows your own slides in each one):
+**Eight styles**, all rendered from the same content (`deck.py gallery` shows your own slides in each one):
 
-![The seven slide styles rendered from the same synthetic demo deck](docs/img/deck-styles.png)
+![The eight slide styles rendered from the same synthetic demo deck](docs/img/deck-styles.png)
 
 | Style | Best for |
 |---|---|
@@ -972,6 +972,7 @@ python3 $G status research/LEDGER.md
 | `notebook` | Dense progress reports with many runs, tables and status chips |
 | `dark` | Code, simulations, imaging; screen sharing and dim rooms |
 | `minimal` | Short updates and pitches with few words per slide |
+| `beamer` | The LaTeX Beamer Madrid look (blue title bar, rounded title box, blocks, three-part footer); with `--format tex` the real `\usetheme{Madrid}`, or another theme via `--beamer-theme` |
 
 **Five structure templates** (`deck.py init`, in English or Chinese): `progress` (where things stand → last time's plan and what happened → results → what did not work → questions for the group → next steps → backup), `journal-club`, `proposal`, `deep-dive`, `rehearsal`.
 
@@ -1002,14 +1003,14 @@ python3 $G status research/LEDGER.md
 
 ```bash
 D=skills/group-meeting-deck/scripts/deck.py
-python3 $D styles                                                   # the seven styles
+python3 $D styles                                                   # the eight styles
 python3 $D init --template progress --minutes 15 --lang zh --out deck/today/deck.md
 python3 $D gallery examples/demo/deck.md --out /tmp/gallery            # every style, your slides
 python3 $D render examples/demo/deck.md --style metropolis --format pptx,tex --compile --out /tmp/deck
 python3 $D check examples/demo/deck.md --minutes 12 --out /tmp/deck    # exit 1 while a FAIL remains
 ```
 
-Options shared by `render`, `gallery` and `check`: `--palette accent=#0B5394`, `--font`, `--aspect 16:9|4:3|16:10`, `--math auto|image|text`. `render --quicklook` also previews the `.pptx` itself through macOS Quick Look. Spec format: [`references/spec-format.md`](skills/group-meeting-deck/references/spec-format.md); check codes: [`references/checks.md`](skills/group-meeting-deck/references/checks.md).
+Options shared by `render`, `gallery` and `check`: `--palette accent=#0B5394`, `--font`, `--aspect 16:9|4:3|16:10`, `--math auto|image|text`. With `--style beamer`, `> text {title="Status"}` becomes a Beamer block, the Madrid palette follows `--palette accent=…`, and `--beamer-theme Warsaw` (or CambridgeUS, Boadilla, AnnArbor, ...) changes the theme of the Beamer file. `render --quicklook` also previews the `.pptx` itself through macOS Quick Look. Spec format: [`references/spec-format.md`](skills/group-meeting-deck/references/spec-format.md); check codes: [`references/checks.md`](skills/group-meeting-deck/references/checks.md).
 
 **Tips.** Write speaker notes as what you will say, or set `{time=1.5}` on a slide: the timing counts notes at 130 words (250 CJK characters) per minute and reports slides without either as assumed. A BLOCKED chip says the work could not be done, not that the idea failed; present it that way.
 
